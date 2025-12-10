@@ -2,11 +2,26 @@
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
 import path from 'path';
+import readline from 'readline';
 
 // Load backend/.env
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
-async function main() {
+function askQuestion(prompt: string): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(prompt, (answer: string) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
+
+async function main(): Promise<void> {
   const clientId = process.env.DRIVE_CLIENT_ID;
   const clientSecret = process.env.DRIVE_CLIENT_SECRET;
   const redirectUri = process.env.DRIVE_REDIRECT_URI;
@@ -47,28 +62,22 @@ async function main() {
   console.log('  http://localhost:4000/oauth2callback?code=XXXXX\n');
   console.log('Copy the `code` value and paste it here.\n');
 
-  const readline = require('readline').createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
+  const code = await askQuestion('Paste the code here: ');
 
-  readline.question('Paste the code here: ', async (code: string) => {
-    readline.close();
+  const { tokens } = await oauth2Client.getToken(code.trim());
 
-    const { tokens } = await oauth2Client.getToken(code.trim());
+  console.log('\n=====================================');
+  console.log(' YOUR DRIVE_OAUTH_TOKENS VALUE:');
+  console.log('=====================================\n');
+  console.log(JSON.stringify(tokens, null, 2));
+  console.log('\nAdd this to your .env:\n');
+  console.log(`DRIVE_OAUTH_TOKENS='${JSON.stringify(tokens)}'`);
 
-    console.log('\n=====================================');
-    console.log(' YOUR DRIVE_OAUTH_TOKENS VALUE:');
-    console.log('=====================================\n');
-    console.log(JSON.stringify(tokens, null, 2));
-    console.log('\nAdd this to your .env:\n');
-    console.log(`DRIVE_OAUTH_TOKENS='${JSON.stringify(tokens)}'`);
-
-    process.exit(0);
-  });
+  process.exit(0);
 }
 
-main().catch((err: any) => {
+main().catch((err: unknown) => {
+  // keep it simple but typed
   console.error(err);
   process.exit(1);
 });

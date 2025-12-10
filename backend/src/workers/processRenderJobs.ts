@@ -4,6 +4,7 @@ import prisma from '../prismaClient';
 import type { RenderJob, MediaItem } from '@prisma/client';
 
 import { google } from 'googleapis';
+import type { Credentials } from 'google-auth-library';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -51,9 +52,9 @@ function getDriveWriteClient() {
     );
   }
 
-  let tokens: any;
+  let tokens: Credentials;
   try {
-    tokens = JSON.parse(tokensJson);
+    tokens = JSON.parse(tokensJson) as Credentials;
   } catch {
     throw new Error('DRIVE_OAUTH_TOKENS is not valid JSON');
   }
@@ -97,7 +98,7 @@ async function downloadDriveFileToTemp(
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'render-job-'));
   const outPath = path.join(tmpDir, `${label}-${fileId}.bin`);
 
-  const readStream = res.data as any as NodeJS.ReadableStream;
+  const readStream = res.data as unknown as NodeJS.ReadableStream;
   const writeStream = fs.createWriteStream(outPath);
 
   await streamPipeline(readStream, writeStream);
@@ -228,7 +229,7 @@ export async function processRenderJob(
   );
 
   const driveRead = getDriveReadClient();
-  let tempFiles: string[] = [];
+  const tempFiles: string[] = [];
 
   try {
     await prisma.renderJob.update({
@@ -338,7 +339,7 @@ export async function processRenderJob(
 
 // ---- STANDALONE EXECUTION ----
 
-async function main() {
+async function main(): Promise<void> {
   console.log('Processing render jobs...');
 
   const jobs = await prisma.renderJob.findMany({
@@ -366,12 +367,12 @@ async function main() {
 
   console.log('Finished processing render jobs.');
   await prisma.$disconnect();
-  
 }
 
 // Only run main if this file is executed directly
 if (require.main === module) {
-  main().catch(async (err) => {
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+  main().catch(async (err: unknown) => {
     console.error(err);
     await prisma.$disconnect();
     process.exit(1);

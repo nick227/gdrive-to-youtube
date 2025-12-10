@@ -1,5 +1,5 @@
 // src/routes/media.ts
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import { google } from 'googleapis';
 import { getServiceAccountAuth } from '../utils/serviceAccountAuth';
 
@@ -15,13 +15,13 @@ function getDriveClient() {
   return google.drive({ version: 'v3', auth });
 }
 
-// --- generic helper to stream any Drive file ---
+// --- generic helper to stream Drive file ---
 
 async function streamDriveFile(
   driveFileId: string,
-  res: any,
+  res: Response,
   fallbackMime: string
-) {
+): Promise<void> {
   try {
     const drive = getDriveClient();
 
@@ -31,8 +31,8 @@ async function streamDriveFile(
       supportsAllDrives: true,
     });
 
-    const mimeType = meta.data.mimeType || fallbackMime;
-    const size = meta.data.size ? parseInt(meta.data.size, 10) : undefined;
+    const mimeType = meta.data.mimeType ?? fallbackMime;
+    const size = meta.data.size ? Number(meta.data.size) : undefined;
 
     res.status(200);
     res.setHeader('Content-Type', mimeType);
@@ -50,7 +50,7 @@ async function streamDriveFile(
       { responseType: 'stream' }
     );
 
-    driveRes.data.on('error', (err: any) => {
+    driveRes.data.on('error', (err: unknown) => {
       console.error('Drive stream error:', err);
       if (!res.headersSent) {
         res.status(500).end('Error streaming file');
@@ -60,7 +60,7 @@ async function streamDriveFile(
     });
 
     driveRes.data.pipe(res);
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('Error streaming drive file:', err);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Failed to stream file' });
@@ -70,22 +70,16 @@ async function streamDriveFile(
 
 // --- routes mounted under /media ---
 
-// GET /media/:driveFileId/image
 router.get('/:driveFileId/image', async (req, res) => {
-  const { driveFileId } = req.params;
-  await streamDriveFile(driveFileId, res, 'image/png');
+  await streamDriveFile(req.params.driveFileId, res, 'image/png');
 });
 
-// GET /media/:driveFileId/audio
 router.get('/:driveFileId/audio', async (req, res) => {
-  const { driveFileId } = req.params;
-  await streamDriveFile(driveFileId, res, 'audio/mpeg');
+  await streamDriveFile(req.params.driveFileId, res, 'audio/mpeg');
 });
 
-// GET /media/:driveFileId/video
 router.get('/:driveFileId/video', async (req, res) => {
-  const { driveFileId } = req.params;
-  await streamDriveFile(driveFileId, res, 'video/mp4');
+  await streamDriveFile(req.params.driveFileId, res, 'video/mp4');
 });
 
 export default router;

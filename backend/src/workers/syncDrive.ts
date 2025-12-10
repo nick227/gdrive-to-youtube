@@ -21,6 +21,10 @@ const folderPathCache = new Map<string, string>();
 /**
  * Validates and retrieves required environment variables
  */
+export interface DriveConfig {
+  folderId: string;
+}
+
 function getConfig(): DriveConfig {
   const folderId = process.env.DRIVE_FOLDER_ID;
 

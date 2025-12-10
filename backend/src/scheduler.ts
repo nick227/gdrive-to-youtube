@@ -6,7 +6,7 @@ import { syncDrive } from './workers/syncDrive';
 
 // Process upload jobs every minute
 cron.schedule('* * * * *', async () => {
-  syncDrive();
+  void syncDrive();
 });
 
 // Process upload jobs every minute

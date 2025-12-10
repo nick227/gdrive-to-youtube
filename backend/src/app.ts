@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
 import session from 'express-session';
 import dotenv from 'dotenv';
 import path from 'node:path';
@@ -71,7 +71,7 @@ app.get('/health', async (req, res) => {
     await prisma.$queryRaw`SELECT 1`;
     res.json({ ok: true, database: 'connected' });
   } catch (err) {
-    res.status(503).json({ ok: false, database: 'disconnected', error: 'Database connection failed' });
+    res.status(503).json({ ok: false, database: 'disconnected', error: 'Database connection failed: ' + err });
   }
 });
 
@@ -108,7 +108,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Global error handler (must be last)
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, req: Request, res: Response) => {
   console.error('Unhandled error:', {
     error: err.message,
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,

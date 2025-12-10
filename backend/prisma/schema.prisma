@@ -1,0 +1,156 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id         Int       @id @default(autoincrement())
+  googleSub  String    @unique
+  email      String    @unique
+  name       String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  youtubeChannels YoutubeChannel[]
+  uploadJobs      UploadJob[]
+}
+
+model YoutubeChannel {
+  id             Int       @id @default(autoincrement())
+  ownerUserId    Int?
+  ownerUser      User?     @relation(fields: [ownerUserId], references: [id])
+
+  channelId      String    @unique
+  title          String?
+  accessToken    String?
+  refreshToken   String?
+  scopes         String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  youtubeVideos  YoutubeVideo[]
+  uploadJobs     UploadJob[]
+}
+
+model MediaItem {
+  id             Int       @id @default(autoincrement())
+  driveFileId    String    @unique
+  name           String
+  mimeType       String
+  sizeBytes      BigInt?
+  folderId       String?
+  folderPath     String?   // 👈 this line
+  webViewLink    String?
+  webContentLink String?
+
+  status         MediaStatus @default(ACTIVE)
+
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  youtubeVideos     YoutubeVideo[]
+  uploadJobs        UploadJob[]
+  audioRenderJobs   RenderJob[] @relation("AudioMediaItem")
+  imageRenderJobs   RenderJob[] @relation("ImageMediaItem")
+  outputRenderJobs  RenderJob[] @relation("OutputMediaItem")
+}
+
+model YoutubeVideo {
+  id               Int             @id @default(autoincrement())
+  mediaItemId      Int
+  mediaItem        MediaItem       @relation(fields: [mediaItemId], references: [id])
+
+  youtubeChannelId Int
+  youtubeChannel   YoutubeChannel  @relation(fields: [youtubeChannelId], references: [id])
+
+  youtubeVideoId   String?   @unique
+
+  title            String
+  description      String
+  tags             String?
+  privacyStatus    PrivacyStatus
+  publishAt        DateTime?
+
+  status           VideoStatus @default(PUBLISHED)
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  uploadJobs       UploadJob[]
+}
+
+model UploadJob {
+  id                Int             @id @default(autoincrement())
+  mediaItemId       Int
+  mediaItem         MediaItem       @relation(fields: [mediaItemId], references: [id])
+
+  youtubeChannelId  Int
+  youtubeChannel    YoutubeChannel  @relation(fields: [youtubeChannelId], references: [id])
+
+  requestedByUserId Int
+  requestedByUser   User           @relation(fields: [requestedByUserId], references: [id])
+
+  youtubeVideoId    Int?
+  youtubeVideo      YoutubeVideo?   @relation(fields: [youtubeVideoId], references: [id])
+
+  title             String
+  description       String
+  tags              String?
+  privacyStatus     PrivacyStatus
+  scheduledFor      DateTime?
+
+  status            JobStatus       @default(PENDING)
+  errorMessage      String?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model RenderJob {
+  id                 Int       @id @default(autoincrement())
+
+  audioMediaItemId   Int
+  audioMediaItem     MediaItem @relation("AudioMediaItem", fields: [audioMediaItemId], references: [id])
+
+  imageMediaItemId   Int?
+  imageMediaItem     MediaItem? @relation("ImageMediaItem", fields: [imageMediaItemId], references: [id])
+
+  outputMediaItemId  Int?
+  outputMediaItem    MediaItem? @relation("OutputMediaItem", fields: [outputMediaItemId], references: [id])
+
+  waveformConfig     String?
+
+  status             JobStatus  @default(PENDING)
+  errorMessage       String?
+
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+enum MediaStatus {
+  ACTIVE
+  MISSING
+  DELETED
+}
+
+enum VideoStatus {
+  PUBLISHED
+  SCHEDULED
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum PrivacyStatus {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}

@@ -1,0 +1,24 @@
+# env
+.env
+backend/.env
+frontend/.env
+
+# deps
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# backend build
+backend/dist/
+backend/public/_next/
+
+# frontend build
+frontend/out/
+
+# ts cache
+*.tsbuildinfo
+
+# logs / os
+*.log
+.DS_Store
+Thumbs.db

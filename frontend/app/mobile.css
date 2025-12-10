@@ -1,0 +1,9 @@
+    @media screen and (max-width: 768px) {
+
+        .media-preview-title,
+        .media-row-preview {
+            height: auto;
+            width: 100%;
+        }
+
+    }

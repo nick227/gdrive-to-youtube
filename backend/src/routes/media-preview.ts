@@ -1,20 +1,16 @@
 // src/routes/media.ts
 import { Router } from 'express';
 import { google } from 'googleapis';
-import path from 'node:path';
+import { getServiceAccountAuth } from '../utils/serviceAccountAuth';
 
 const router = Router();
 
 // --- Drive client ---
 
 function getDriveClient() {
-  const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  if (!keyPath) throw new Error('GOOGLE_APPLICATION_CREDENTIALS not set');
-
-  const auth = new google.auth.GoogleAuth({
-    keyFile: path.resolve(keyPath),
-    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
-  });
+  const auth = getServiceAccountAuth([
+    'https://www.googleapis.com/auth/drive.readonly',
+  ]);
 
   return google.drive({ version: 'v3', auth });
 }

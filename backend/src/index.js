@@ -1,34 +1,24 @@
 import dotenv from 'dotenv';
 import { google } from 'googleapis';
-import path from 'node:path';
 import process from 'node:process';
+import { getServiceAccountAuth } from './utils/serviceAccountAuth.js';
 
 dotenv.config();
 
 async function main() {
-  const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   const folderId = process.env.DRIVE_FOLDER_ID;
-
-  if (!keyPath) {
-    console.error('Missing GOOGLE_APPLICATION_CREDENTIALS in .env');
-    process.exit(1);
-  }
 
   if (!folderId) {
     console.error('Missing DRIVE_FOLDER_ID in .env');
     process.exit(1);
   }
 
-  const resolvedKeyPath = path.resolve(keyPath);
-
-  console.log('Using service account key at:', resolvedKeyPath);
   console.log('Listing files in Drive folder:', folderId);
   console.log('');
 
-  const auth = new google.auth.GoogleAuth({
-    keyFile: resolvedKeyPath,
-    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
-  });
+  const auth = getServiceAccountAuth([
+    'https://www.googleapis.com/auth/drive.readonly',
+  ]);
 
   const client = await auth.getClient();
   const drive = google.drive({ version: 'v3', auth: client });

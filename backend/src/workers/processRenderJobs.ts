@@ -10,6 +10,7 @@ import path from 'path';
 import { promisify } from 'util';
 import { pipeline } from 'stream';
 import { spawn } from 'child_process';
+import { getServiceAccountAuth } from '../utils/serviceAccountAuth';
 
 dotenv.config();
 
@@ -24,17 +25,9 @@ type RenderJobWithRelations = RenderJob & {
 
 // Service account client: READ (download) from Drive
 function getDriveReadClient() {
-  const keyFile = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  if (!keyFile) {
-    throw new Error('GOOGLE_APPLICATION_CREDENTIALS is not set');
-  }
-
-  console.log(`Using service account key at: ${keyFile}`);
-
-  const auth = new google.auth.GoogleAuth({
-    keyFile,
-    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
-  });
+  const auth = getServiceAccountAuth([
+    'https://www.googleapis.com/auth/drive.readonly',
+  ]);
 
   const drive = google.drive({ version: 'v3', auth });
   return drive;

@@ -2,7 +2,7 @@ import { google, youtube_v3 } from 'googleapis';
 import { getOrRefreshChannelAuth } from './youtubeAuth';
 import { PrivacyStatus } from '@prisma/client';
 import { Readable } from 'stream';
-import path from 'node:path';
+import { getServiceAccountAuth } from './serviceAccountAuth';
 
 export async function uploadVideoToYouTube(
   channelId: string,
@@ -57,15 +57,9 @@ export async function uploadVideoToYouTube(
 }
 
 export async function downloadFileFromDrive(driveFileId: string): Promise<{ stream: Readable; size: number }> {
-  const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  if (!keyPath) {
-    throw new Error('GOOGLE_APPLICATION_CREDENTIALS not configured');
-  }
-
-  const auth = new google.auth.GoogleAuth({
-    keyFile: path.resolve(keyPath),
-    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
-  });
+  const auth = getServiceAccountAuth([
+    'https://www.googleapis.com/auth/drive.readonly',
+  ]);
 
   const drive = google.drive({ version: 'v3', auth });
 

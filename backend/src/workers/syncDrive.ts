@@ -1,15 +1,10 @@
 // src/workers/syncDrive.ts
 import dotenv from 'dotenv';
-import path from 'node:path';
 import { google, drive_v3 } from 'googleapis';
 import prisma from '../prismaClient';
+import { getServiceAccountAuth } from '../utils/serviceAccountAuth';
 
 dotenv.config();
-
-interface DriveConfig {
-  keyPath: string;
-  folderId: string;
-}
 
 interface SyncStats {
   upserted: number;
@@ -27,29 +22,22 @@ const folderPathCache = new Map<string, string>();
  * Validates and retrieves required environment variables
  */
 function getConfig(): DriveConfig {
-  const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   const folderId = process.env.DRIVE_FOLDER_ID;
 
-  if (!keyPath || !folderId) {
+  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS || !folderId) {
     throw new Error(
       'Missing required environment variables: GOOGLE_APPLICATION_CREDENTIALS and/or DRIVE_FOLDER_ID'
     );
   }
 
-  return { keyPath, folderId };
+  return { folderId };
 }
 
 /**
  * Initializes Google Drive API client
  */
-function initializeDriveClient(keyPath: string): drive_v3.Drive {
-  const resolvedKeyPath = path.resolve(keyPath);
-  console.log('Using service account key at:', resolvedKeyPath);
-
-  const auth = new google.auth.GoogleAuth({
-    keyFile: resolvedKeyPath,
-    scopes: DRIVE_SCOPES,
-  });
+function initializeDriveClient(): drive_v3.Drive {
+  const auth = getServiceAccountAuth(DRIVE_SCOPES);
 
   return google.drive({ version: 'v3', auth });
 }
@@ -225,7 +213,7 @@ export async function syncDrive(): Promise<SyncStats> {
   const config = getConfig();
   console.log('Syncing files from Drive folder:', config.folderId);
 
-  const drive = initializeDriveClient(config.keyPath);
+  const drive = initializeDriveClient();
   const seenIds = new Set<string>();
 
   try {

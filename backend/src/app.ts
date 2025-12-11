@@ -23,10 +23,12 @@ const app = express();
 // CORS
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const allowedOrigins = [
-    'http://localhost:3000',
-    process.env.FRONTEND_URL,
-  ].filter(Boolean) as string[];
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.BACKEND_URL,
+  'http://localhost:3000'
+].filter(Boolean);
+
 
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);

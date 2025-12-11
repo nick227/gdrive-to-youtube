@@ -36,6 +36,7 @@ CREATE TABLE `MediaItem` (
     `mimeType` VARCHAR(191) NOT NULL,
     `sizeBytes` BIGINT NULL,
     `folderId` VARCHAR(191) NULL,
+    `folderPath` VARCHAR(191) NULL,
     `webViewLink` VARCHAR(191) NULL,
     `webContentLink` VARCHAR(191) NULL,
     `status` ENUM('ACTIVE', 'MISSING', 'DELETED') NOT NULL DEFAULT 'ACTIVE',
@@ -57,8 +58,7 @@ CREATE TABLE `YoutubeVideo` (
     `tags` VARCHAR(191) NULL,
     `privacyStatus` ENUM('PUBLIC', 'UNLISTED', 'PRIVATE') NOT NULL,
     `publishAt` DATETIME(3) NULL,
-    `status` ENUM('PENDING', 'UPLOADING', 'PUBLISHED', 'FAILED') NOT NULL DEFAULT 'PENDING',
-    `errorMessage` VARCHAR(191) NULL,
+    `status` ENUM('PUBLISHED', 'SCHEDULED') NOT NULL DEFAULT 'PUBLISHED',
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -72,6 +72,7 @@ CREATE TABLE `UploadJob` (
     `mediaItemId` INTEGER NOT NULL,
     `youtubeChannelId` INTEGER NOT NULL,
     `requestedByUserId` INTEGER NOT NULL,
+    `youtubeVideoId` INTEGER NULL,
     `title` VARCHAR(191) NOT NULL,
     `description` VARCHAR(191) NOT NULL,
     `tags` VARCHAR(191) NULL,
@@ -117,6 +118,9 @@ ALTER TABLE `UploadJob` ADD CONSTRAINT `UploadJob_youtubeChannelId_fkey` FOREIGN
 
 -- AddForeignKey
 ALTER TABLE `UploadJob` ADD CONSTRAINT `UploadJob_requestedByUserId_fkey` FOREIGN KEY (`requestedByUserId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `UploadJob` ADD CONSTRAINT `UploadJob_youtubeVideoId_fkey` FOREIGN KEY (`youtubeVideoId`) REFERENCES `YoutubeVideo`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `RenderJob` ADD CONSTRAINT `RenderJob_audioMediaItemId_fkey` FOREIGN KEY (`audioMediaItemId`) REFERENCES `MediaItem`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

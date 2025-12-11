@@ -1,17 +1,12 @@
-[phases.setup]
-nixPkgs = ['nodejs-18_x']
-
-[phases.install]
-cmds = [
-  'npm ci',
-  'npm ci --prefix frontend',
-  'npm ci --prefix backend'
-]
+# Force Node 18 using the supported Nixpacks field
+[build]
+nodeVersion = "18"
 
 [phases.build]
 cmds = [
-  'npm run build'
+  "npm ci",
+  "npm run build"
 ]
 
 [start]
-cmd = 'npm start'
+cmd = "npm start"

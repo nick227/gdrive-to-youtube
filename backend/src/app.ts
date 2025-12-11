@@ -88,29 +88,35 @@ app.use('/upload-jobs', requireAuth, uploadJobRoutes);
 app.use('/render-jobs', requireAuth, renderJobRoutes);
 
 // Serve exported Next.js frontend (static) only in production
-// Serve exported Next.js frontend (static) only in production
 if (process.env.NODE_ENV === 'production') {
-  const frontendDir = path.resolve(__dirname, 'public');  // FIXED PATH
+  // From dist/src → go to dist/public
+  const frontendDir = path.resolve(__dirname, '../public');
+
+  console.log("Static frontend expected at:", frontendDir);
+
   if (fs.existsSync(frontendDir)) {
     app.use(express.static(frontendDir));
+
+    // Catch-all: return index.html for non-API routes
     app.get('*', (req, res, next) => {
       const apiPaths = [
         '/auth', '/media', '/videos',
         '/channels', '/media-preview',
         '/upload-jobs', '/render-jobs', '/health'
       ];
-      if (apiPaths.some(path => req.path.startsWith(path))) {
+
+      if (apiPaths.some(p => req.path.startsWith(p))) {
         return next();
       }
+
       res.sendFile(path.join(frontendDir, 'index.html'), err => {
         if (err) next(err);
       });
     });
   } else {
-    console.warn('frontend/out not found; skipping static frontend hosting');
+    console.warn('Static frontend folder NOT found:', frontendDir);
   }
 }
-
 
 // Global error handler (must be last)
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {

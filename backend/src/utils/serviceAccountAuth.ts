@@ -18,11 +18,17 @@ export function getServiceAccountAuth(scopes: string[]) {
   }
 
   // 2) If it starts with a quote, it's probably JSON-stringified JSON: "\"{...}\""
+  //    or escaped JSON starting with \"...\", so unwrap then unescape.
   if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
     trimmed = JSON.parse(trimmed); // unwrap outer quotes
   }
 
-  // 3) Now trimmed should be a raw JSON object string: "{...}"
+  // 3) Handle escaped JSON strings that start with a backslash (e.g. \"{...}\")
+  if (trimmed.startsWith('\\')) {
+    trimmed = trimmed.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  }
+
+  // 4) Now trimmed should be a raw JSON object string: "{...}"
   const credentials: any = JSON.parse(trimmed);
 
   // Ensure private_key has real newlines (in case they are escaped)

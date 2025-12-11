@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import session from 'express-session';
 import dotenv from 'dotenv';
 import path from 'node:path';
@@ -108,19 +108,24 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Global error handler (must be last)
-app.use((err: Error, req: Request, res: Response) => {
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled error:', {
     error: err.message,
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-    path: req.path,
-    method: req.method,
+    path: req?.path,
+    method: req?.method,
   });
   
-  res.status(500).json({
-    error: process.env.NODE_ENV === 'production' 
-      ? 'Internal server error' 
-      : err.message,
-  });
+  if (typeof res?.status === 'function') {
+    res.status(500).json({
+      error: process.env.NODE_ENV === 'production' 
+        ? 'Internal server error' 
+        : err.message,
+    });
+  } else {
+    // Fall back in case this is invoked outside a normal request/response cycle
+    console.error('Response object missing in error handler; cannot send HTTP response');
+  }
 });
 
 export default app;

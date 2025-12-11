@@ -1,16 +1,14 @@
-const fs = require('fs');
-const path = require('path');
+// scripts/copy-frontend.js
+const fs = require("fs-extra");
+const path = require("path");
 
-const frontendOut = path.join(__dirname, '../../frontend/out');
-const backendPublic = path.join(__dirname, '../public');
+const src = path.join(__dirname, "..", "frontend", "out");
+const dest = path.join(__dirname, "..", "dist", "src", "public");
 
-if (fs.existsSync(backendPublic)) {
-  fs.rmSync(backendPublic, { recursive: true, force: true });
-}
-
-if (fs.existsSync(frontendOut)) {
-  fs.cpSync(frontendOut, backendPublic, { recursive: true });
-  console.log('Frontend copied to backend/public');
+if (fs.existsSync(src)) {
+  fs.ensureDirSync(dest);
+  fs.copySync(src, dest, { overwrite: true });
+  console.log("Frontend copied to dist/src/public");
 } else {
-  console.warn('Frontend out directory not found, skipping copy');
+  console.log("Frontend out directory not found, skipping copy");
 }

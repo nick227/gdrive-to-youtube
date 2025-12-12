@@ -1,12 +1,11 @@
 import { google, youtube_v3 } from 'googleapis';
-import { getOrRefreshChannelAuth } from './youtubeAuth';
 import { PrivacyStatus } from '@prisma/client';
 import { Readable } from 'stream';
 import { getServiceAccountAuth } from './serviceAccountAuth';
+import { OAuth2Client } from 'google-auth-library';
 
 export async function uploadVideoToYouTube(
-  channelId: string,
-  mediaItemId: number,
+  auth: OAuth2Client,
   title: string,
   description: string,
   tags: string[] | null,
@@ -15,7 +14,6 @@ export async function uploadVideoToYouTube(
   videoSize: number,
   publishAt?: Date
 ): Promise<string> {
-  const auth = await getOrRefreshChannelAuth(channelId);
   const youtube = google.youtube({ version: 'v3', auth });
 
   const tagsArray = tags || [];
@@ -104,11 +102,10 @@ async function downloadImageFromDrive(driveFileId: string): Promise<Readable> {
 }
 
 export async function uploadVideoThumbnailFromDrive(
-  channelId: string,
+  auth: OAuth2Client,
   youtubeVideoId: string,
   driveFileId: string
 ): Promise<void> {
-  const auth = await getOrRefreshChannelAuth(channelId);
   const youtube = google.youtube({ version: 'v3', auth });
 
   const thumbnailStream = await downloadImageFromDrive(driveFileId);

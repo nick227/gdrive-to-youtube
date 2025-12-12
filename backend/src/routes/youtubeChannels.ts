@@ -52,6 +52,7 @@ router.get('/callback', async (req, res) => {
 
     const accessToken = tokens.access_token;
     const newRefreshToken = tokens.refresh_token || null;
+    const tokenExpiresAt = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
 
     // Build OAuth client
     const { clientId, clientSecret, redirectUri } = getOAuthCredentials();
@@ -84,27 +85,35 @@ router.get('/callback', async (req, res) => {
         // Ignore parse errors
       }
     }
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user context in OAuth state' });
+    }
 
     const channelId = channel.id;
     const title = channel.snippet?.title || null;
 
-    // Upsert YouTube channel with tokens
+    // Upsert YouTube channel (metadata only)
     await prisma.youtubeChannel.upsert({
       where: { channelId },
+      create: { channelId, title },
+      update: { title },
+    });
+
+    // Upsert link for this user+channel with tokens
+    await prisma.youtubeChannelLink.upsert({
+      where: { userId_channelId: { userId, channelId } },
       create: {
+        userId,
         channelId,
-        title,
-        ownerUserId: userId,
         accessToken,
         refreshToken: newRefreshToken,
+        tokenExpiresAt,
         scopes: tokens.scope || null,
       },
       update: {
-        title,
-        ownerUserId: userId,
         accessToken,
-        // Only overwrite refreshToken if Google actually sent a new one
-        ...(newRefreshToken && { refreshToken: newRefreshToken }),
+        refreshToken: newRefreshToken || undefined,
+        tokenExpiresAt,
         scopes: tokens.scope || null,
       },
     });
@@ -124,15 +133,6 @@ router.get('/', async (_req, res) => {
   try {
     const channels = await prisma.youtubeChannel.findMany({
       orderBy: { createdAt: 'desc' },
-      include: {
-        ownerUser: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-          },
-        },
-      },
     });
     return res.json(channels);
   } catch (err) {
@@ -146,15 +146,6 @@ router.get('/:id', async (req, res) => {
   try {
     const channel = await prisma.youtubeChannel.findUnique({
       where: { id: parseInt(req.params.id, 10) },
-      include: {
-        ownerUser: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-          },
-        },
-      },
     });
 
     if (!channel) {

@@ -1,3 +1,5 @@
+// schema.prisma
+
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
@@ -8,133 +10,171 @@ generator client {
 }
 
 model User {
-  id         Int       @id @default(autoincrement())
-  googleSub  String    @unique
-  email      String    @unique
-  name       String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  googleSub String   @unique
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  youtubeChannels YoutubeChannel[]
-  uploadJobs      UploadJob[]
+  youtubeChannelLinks YoutubeChannelLink[]
+  uploadJobs          UploadJob[]
+
+  @@index([email])
+  @@index([googleSub])
 }
 
 model YoutubeChannel {
-  id             Int       @id @default(autoincrement())
-  ownerUserId    Int?
-  ownerUser      User?     @relation(fields: [ownerUserId], references: [id])
+  id        Int      @id @default(autoincrement())
+  channelId String   @unique
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  channelId      String    @unique
-  title          String?
-  accessToken    String?
-  refreshToken   String?
-  scopes         String?
+  links        YoutubeChannelLink[]
+  youtubeVideos YoutubeVideo[]
+  uploadJobs    UploadJob[]
+}
+
+model YoutubeChannelLink {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  channelId      String
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel        YoutubeChannel @relation(fields: [channelId], references: [channelId], onDelete: Cascade)
+
+  // tokens per user-channel link (use Text to avoid MySQL varchar limits)
+  accessToken    String?   @db.Text
+  refreshToken   String?   @db.Text
+  tokenExpiresAt DateTime?
+  scopes         String?   @db.Text
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  youtubeVideos  YoutubeVideo[]
-  uploadJobs     UploadJob[]
+  @@unique([userId, channelId])
+  @@index([channelId])
+  @@index([userId])
 }
 
 model MediaItem {
-  id             Int       @id @default(autoincrement())
-  driveFileId    String    @unique
+  id             Int      @id @default(autoincrement())
+  driveFileId    String   @unique
   name           String
   mimeType       String
   sizeBytes      BigInt?
   folderId       String?
-  folderPath     String?   // 👈 this line
-  webViewLink    String?
-  webContentLink String?
+  folderPath     String?  @db.Text
+  webViewLink    String?  @db.Text
+  webContentLink String?  @db.Text
 
   status         MediaStatus @default(ACTIVE)
 
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  youtubeVideos     YoutubeVideo[]
-  uploadJobs        UploadJob[]
-  audioRenderJobs   RenderJob[] @relation("AudioMediaItem")
-  imageRenderJobs   RenderJob[] @relation("ImageMediaItem")
-  outputRenderJobs  RenderJob[] @relation("OutputMediaItem")
-  thumbnailUploadJobs UploadJob[] @relation("ThumbnailMediaItem")
-  videoThumbnails   YoutubeVideo[] @relation("VideoThumbnailMediaItem")
+  youtubeVideos         YoutubeVideo[]
+  uploadJobs            UploadJob[]
+  audioRenderJobs       RenderJob[]   @relation("AudioMediaItem")
+  imageRenderJobs       RenderJob[]   @relation("ImageMediaItem")
+  outputRenderJobs      RenderJob[]   @relation("OutputMediaItem")
+  thumbnailUploadJobs   UploadJob[]   @relation("ThumbnailMediaItem")
+  videoThumbnails       YoutubeVideo[] @relation("VideoThumbnailMediaItem")
 }
 
 model YoutubeVideo {
-  id               Int             @id @default(autoincrement())
-  mediaItemId      Int
-  mediaItem        MediaItem       @relation(fields: [mediaItemId], references: [id])
+  id                 Int            @id @default(autoincrement())
+  mediaItemId        Int
+  mediaItem          MediaItem      @relation(fields: [mediaItemId], references: [id], onDelete: Restrict)
 
-  youtubeChannelId Int
-  youtubeChannel   YoutubeChannel  @relation(fields: [youtubeChannelId], references: [id])
+  youtubeChannelId   Int
+  youtubeChannel     YoutubeChannel @relation(fields: [youtubeChannelId], references: [id], onDelete: Restrict)
+
   thumbnailMediaItemId Int?
-  thumbnailMediaItem   MediaItem? @relation("VideoThumbnailMediaItem", fields: [thumbnailMediaItemId], references: [id])
+  thumbnailMediaItem   MediaItem?   @relation("VideoThumbnailMediaItem", fields: [thumbnailMediaItemId], references: [id], onDelete: SetNull)
 
-  youtubeVideoId   String?   @unique
+  youtubeVideoId     String?        @unique
 
-  title            String
-  description      String
-  tags             String?
-  privacyStatus    PrivacyStatus
-  publishAt        DateTime?
+  title              String
+  description        String         @db.Text
+  tags               String?        @db.Text
+  privacyStatus      PrivacyStatus
+  publishAt          DateTime?
 
-  status           VideoStatus @default(PUBLISHED)
+  status             VideoStatus    @default(PUBLISHED)
+
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  uploadJobs         UploadJob[]
+
+  @@index([mediaItemId])
+  @@index([youtubeChannelId])
+  @@index([thumbnailMediaItemId])
+}
+
+model UploadJob {
+  id                  Int            @id @default(autoincrement())
+  mediaItemId         Int
+  mediaItem           MediaItem      @relation(fields: [mediaItemId], references: [id], onDelete: Restrict)
+
+  youtubeChannelId    Int
+  youtubeChannel      YoutubeChannel @relation(fields: [youtubeChannelId], references: [id], onDelete: Restrict)
+
+  requestedByUserId   Int
+  requestedByUser     User           @relation(fields: [requestedByUserId], references: [id], onDelete: Restrict)
+
+  youtubeVideoId      Int?
+  youtubeVideo        YoutubeVideo?  @relation(fields: [youtubeVideoId], references: [id], onDelete: SetNull)
+
+  thumbnailMediaItemId Int?
+  thumbnailMediaItem   MediaItem?    @relation("ThumbnailMediaItem", fields: [thumbnailMediaItemId], references: [id], onDelete: SetNull)
+
+  title               String
+  description         String         @db.Text
+  tags                String?        @db.Text
+  privacyStatus       PrivacyStatus
+  scheduledFor        DateTime?
+
+  status              JobStatus      @default(PENDING)
+  errorMessage        String?        @db.Text
+
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([mediaItemId])
+  @@index([youtubeChannelId])
+  @@index([requestedByUserId])
+  @@index([youtubeVideoId])
+  @@index([thumbnailMediaItemId])
+  @@index([status, scheduledFor])
+}
+
+model RenderJob {
+  id               Int      @id @default(autoincrement())
+
+  audioMediaItemId Int
+  audioMediaItem   MediaItem  @relation("AudioMediaItem", fields: [audioMediaItemId], references: [id], onDelete: Restrict)
+
+  imageMediaItemId Int?
+  imageMediaItem   MediaItem? @relation("ImageMediaItem", fields: [imageMediaItemId], references: [id], onDelete: SetNull)
+
+  outputMediaItemId Int?
+  outputMediaItem   MediaItem? @relation("OutputMediaItem", fields: [outputMediaItemId], references: [id], onDelete: SetNull)
+
+  waveformConfig   String?   @db.Text
+
+  status           JobStatus @default(PENDING)
+  errorMessage     String?   @db.Text
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  uploadJobs       UploadJob[]
-}
-
-model UploadJob {
-  id                Int             @id @default(autoincrement())
-  mediaItemId       Int
-  mediaItem         MediaItem       @relation(fields: [mediaItemId], references: [id])
-
-  youtubeChannelId  Int
-  youtubeChannel    YoutubeChannel  @relation(fields: [youtubeChannelId], references: [id])
-
-  requestedByUserId Int
-  requestedByUser   User           @relation(fields: [requestedByUserId], references: [id])
-
-  youtubeVideoId    Int?
-  youtubeVideo      YoutubeVideo?   @relation(fields: [youtubeVideoId], references: [id])
-  thumbnailMediaItemId Int?
-  thumbnailMediaItem   MediaItem? @relation("ThumbnailMediaItem", fields: [thumbnailMediaItemId], references: [id])
-
-  title             String
-  description       String
-  tags              String?
-  privacyStatus     PrivacyStatus
-  scheduledFor      DateTime?
-
-  status            JobStatus       @default(PENDING)
-  errorMessage      String?
-
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-}
-
-model RenderJob {
-  id                 Int       @id @default(autoincrement())
-
-  audioMediaItemId   Int
-  audioMediaItem     MediaItem @relation("AudioMediaItem", fields: [audioMediaItemId], references: [id])
-
-  imageMediaItemId   Int?
-  imageMediaItem     MediaItem? @relation("ImageMediaItem", fields: [imageMediaItemId], references: [id])
-
-  outputMediaItemId  Int?
-  outputMediaItem    MediaItem? @relation("OutputMediaItem", fields: [outputMediaItemId], references: [id])
-
-  waveformConfig     String?
-
-  status             JobStatus  @default(PENDING)
-  errorMessage       String?
-
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  @@index([audioMediaItemId])
+  @@index([imageMediaItemId])
+  @@index([outputMediaItemId])
+  @@index([status])
 }
 
 enum MediaStatus {

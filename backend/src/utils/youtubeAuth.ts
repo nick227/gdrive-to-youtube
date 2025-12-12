@@ -3,6 +3,7 @@ import { google } from 'googleapis';
 import prisma from '../prismaClient';
 import fs from 'fs';
 import path from 'node:path';
+import { OAuth2Client } from 'google-auth-library';
 
 type GoogleOAuthJson = {
   web?: {
@@ -102,16 +103,14 @@ function getOAuth2Client() {
 export function getAuthUrl(state?: string): string {
   const client = getOAuth2Client();
 
-  const scopes = [
-    'https://www.googleapis.com/auth/youtube.upload',
-    'https://www.googleapis.com/auth/youtube.readonly',
-  ];
+  const scopes = ['https://www.googleapis.com/auth/youtube.upload'];
 
   return client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
+    include_granted_scopes: true,
     scope: scopes,
-    state,
+    state, // should be a nonce you validate server-side
   });
 }
 
@@ -138,46 +137,48 @@ async function refreshAccessToken(refreshToken: string) {
  * Get YouTube OAuth client pre-configured with channel access/refresh tokens.
  * Automatically refreshes and persists new tokens.
  */
-export async function getOrRefreshChannelAuth(channelId: string) {
-  const channel = await prisma.youtubeChannel.findUnique({
-    where: { channelId },
+export async function getUserChannelAuth(userId: number, channelId: string): Promise<OAuth2Client> {
+  const link = await prisma.youtubeChannelLink.findUnique({
+    where: { userId_channelId: { userId, channelId } },
   });
 
-  if (!channel || !channel.accessToken) {
-    throw new Error(`Channel ${channelId} not found or not authenticated.`);
+  if (!link || (!link.accessToken && !link.refreshToken)) {
+    throw new Error(`No OAuth credentials for user ${userId} on channel ${channelId}`);
   }
 
-  let { accessToken, refreshToken } = channel;
+  let accessToken = link.accessToken || undefined;
+  let refreshToken = link.refreshToken || undefined;
+  const needsRefresh =
+    !!refreshToken &&
+    (!link.tokenExpiresAt || link.tokenExpiresAt.getTime() <= Date.now() + 60_000);
 
-  // Refresh if refresh token exists
-  if (refreshToken) {
+  if (needsRefresh) {
     try {
-      const creds = await refreshAccessToken(refreshToken);
-
+      const creds = await refreshAccessToken(refreshToken!);
       accessToken = creds.access_token || accessToken;
-
-      // Google sometimes returns a NEW refresh token
       if (creds.refresh_token) {
         refreshToken = creds.refresh_token;
       }
+      const expires = creds.expiry_date ? new Date(creds.expiry_date) : null;
 
-      await prisma.youtubeChannel.update({
-        where: { channelId },
+      await prisma.youtubeChannelLink.update({
+        where: { userId_channelId: { userId, channelId } },
         data: {
           accessToken,
           refreshToken,
+          tokenExpiresAt: expires,
         },
       });
     } catch (err) {
-      console.error(`Failed to refresh YouTube tokens for ${channelId}:`, err);
+      console.error(`Failed to refresh YouTube tokens for user ${userId} channel ${channelId}:`, err);
     }
   }
 
-  // Create authenticated client
   const client = getOAuth2Client();
   client.setCredentials({
     access_token: accessToken,
     refresh_token: refreshToken,
+    expiry_date: link.tokenExpiresAt?.getTime(),
   });
 
   return client;

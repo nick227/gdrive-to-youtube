@@ -2,6 +2,8 @@ import dotenv from 'dotenv';
 import prisma from '../prismaClient';
 import { uploadVideoToYouTube, downloadFileFromDrive, uploadVideoThumbnailFromDrive } from '../utils/youtubeUpload';
 import type { UploadJob, MediaItem, YoutubeChannel } from '@prisma/client';
+import { getUserChannelAuth } from '../utils/youtubeAuth';
+import { Readable } from 'stream';
 
 dotenv.config();
 
@@ -12,42 +14,56 @@ type UploadJobWithRelations = UploadJob & {
 };
 
 export async function processUploadJob(job: UploadJobWithRelations): Promise<void> {
-  // Idempotency: skip if already has youtubeVideoId
-  if (job.youtubeVideoId) {
-    console.log(`Job ${job.id} already has youtubeVideoId, skipping.`);
+  // Claim the job atomically; skip if already processed
+  const claimed = await prisma.uploadJob.updateMany({
+    where: { id: job.id, status: 'PENDING' },
+    data: { status: 'RUNNING' },
+  });
+  if (claimed.count === 0) {
+    console.log(`Job ${job.id} already claimed or not pending, skipping.`);
     return;
   }
 
   try {
     console.log(`Processing job ${job.id}: ${job.title}`);
     
-    await prisma.uploadJob.update({
-      where: { id: job.id },
-      data: { status: 'RUNNING' },
-    });
-
-    if (!job.youtubeChannel.accessToken) {
-      throw new Error(`Channel ${job.youtubeChannel.channelId} is not authenticated`);
-    }
+    const auth = await getUserChannelAuth(job.requestedByUserId, job.youtubeChannel.channelId);
 
     if (!job.mediaItem.driveFileId) {
       throw new Error(`MediaItem ${job.mediaItemId} has no driveFileId`);
     }
 
     console.log(`Downloading file from Drive: ${job.mediaItem.driveFileId}`);
-    const { stream, size } = await downloadFileFromDrive(job.mediaItem.driveFileId);
+    let videoStream: Readable | undefined;
+    let size = 0;
+    try {
+      const download = await downloadFileFromDrive(job.mediaItem.driveFileId);
+      videoStream = download.stream;
+      size = download.size;
+    } catch (err) {
+      throw new Error(`Failed to download media from Drive: ${String(err)}`);
+    }
 
-    const tags = job.tags ? JSON.parse(job.tags) : null;
+    let tags: string[] | null = null;
+    if (job.tags) {
+      try {
+        const parsed = JSON.parse(job.tags);
+        if (Array.isArray(parsed)) {
+          tags = parsed.filter((t) => typeof t === 'string');
+        }
+      } catch {
+        tags = null;
+      }
+    }
 
-    console.log(`Uploading to YouTube channel: ${job.youtubeChannel.channelId}`);
+    console.log(`Uploading to YouTube channel: ${job.youtubeChannel.channelId} (job ${job.id})`);
     const youtubeVideoId = await uploadVideoToYouTube(
-      job.youtubeChannel.channelId,
-      job.mediaItemId,
+      auth,
       job.title,
       job.description,
       tags,
       job.privacyStatus,
-      stream,
+      videoStream!,
       size,
       job.scheduledFor ?? undefined
     );
@@ -76,7 +92,7 @@ export async function processUploadJob(job: UploadJobWithRelations): Promise<voi
     if (job.thumbnailMediaItem?.driveFileId) {
       try {
         await uploadVideoThumbnailFromDrive(
-          job.youtubeChannel.channelId,
+          auth,
           youtubeVideoId,
           job.thumbnailMediaItem.driveFileId
         );
@@ -103,9 +119,11 @@ export async function processUploadJob(job: UploadJobWithRelations): Promise<voi
       where: { id: job.id },
       data: {
         status: 'FAILED',
-        errorMessage: errorMessage.substring(0, 191),
+        errorMessage,
       },
     });
+  } finally {
+    // Nothing to do; streams are destroyed inside upload helpers when needed
   }
 }
 

@@ -62,6 +62,7 @@ export interface UploadJob {
   youtubeChannelId: number;
   requestedByUserId: number;
   youtubeVideoId: number | null; // ADDED: was missing
+  thumbnailMediaItemId?: number | null;
   title: string;
   description: string;
   tags: string | null;
@@ -72,6 +73,7 @@ export interface UploadJob {
   createdAt: string;
   updatedAt: string;
   mediaItem?: MediaItem;
+  thumbnailMediaItem?: MediaItem | null;
   youtubeChannel?: YoutubeChannel;
   youtubeVideo?: YoutubeVideo | null;
 }
@@ -98,6 +100,7 @@ export interface RenderJob {
 export interface CreateUploadJobRequest {
   mediaItemId: number;
   youtubeChannelId: number;
+  thumbnailMediaItemId?: number;
   title: string;
   description: string;
   tags?: string[];

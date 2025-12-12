@@ -7,6 +7,7 @@ import type { CreateUploadJobRequest, CreateRenderJobRequest, PrivacyStatus } fr
 export interface UploadJobFormData {
   mediaItemId: number;
   youtubeChannelId: number;
+  thumbnailMediaItemId?: number | null;
   title: string;
   description: string;
   tags: string; // comma-separated string from input
@@ -27,6 +28,7 @@ export function buildUploadJobPayload(formData: UploadJobFormData): CreateUpload
   return {
     mediaItemId: formData.mediaItemId,
     youtubeChannelId: formData.youtubeChannelId,
+    thumbnailMediaItemId: formData.thumbnailMediaItemId || undefined,
     title: formData.title,
     description: formData.description,
     tags: formData.tags ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean) : undefined,

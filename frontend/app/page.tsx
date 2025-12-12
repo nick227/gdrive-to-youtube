@@ -119,7 +119,7 @@ export default function Page() {
       </div>
 
       {!user && (
-        <div className="alert alert-info">
+        <div className="alert alert-info mt-4 mb-2">
           Sign in to create upload jobs and manage your videos.
         </div>
       )}

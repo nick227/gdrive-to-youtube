@@ -16,6 +16,7 @@ router.post('/', async (req, res) => {
     const {
       mediaItemId,
       youtubeChannelId,
+      thumbnailMediaItemId,
       title,
       description,
       tags,
@@ -31,11 +32,22 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Invalid privacyStatus' });
     }
 
+    if (thumbnailMediaItemId) {
+      const thumbItem = await prisma.mediaItem.findUnique({ where: { id: thumbnailMediaItemId } });
+      if (!thumbItem) {
+        return res.status(400).json({ error: 'Thumbnail media item not found' });
+      }
+      if (!thumbItem.mimeType.startsWith('image/')) {
+        return res.status(400).json({ error: 'Thumbnail must be an image' });
+      }
+    }
+
     const job = await prisma.uploadJob.create({
       data: {
         mediaItemId,
         youtubeChannelId,
         requestedByUserId: user.id,
+        thumbnailMediaItemId: thumbnailMediaItemId || null,
         title,
         description,
         tags: tags ? JSON.stringify(tags) : null,

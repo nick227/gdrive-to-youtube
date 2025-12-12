@@ -32,6 +32,8 @@ export default function StatusBadge({ status, text, scheduledTime }: StatusBadge
     displayText = `Scheduled (${formatScheduledTime(scheduledTime)})`;
   }
 
+  displayText = displayText === "Idle" ? "" : displayText;
+
   return (
     <span className={`badge badge-${status}`}>
       {displayText}

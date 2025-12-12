@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useMemo } from 'react';
 import Modal from './ui/Modal';
 import { MediaItem, YoutubeChannel } from '../types/api';
 import { buildUploadJobPayload, UploadJobFormData } from '../utils/payloadBuilders';
 import { API_URL } from '../config/api';
+import { useMediaDashboard } from '../hooks/useMediaDashboard';
 
 interface QuickUploadModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface QuickUploadModalProps {
 const initialFormData: UploadJobFormData = {
   mediaItemId: 0,
   youtubeChannelId: 0,
+  thumbnailMediaItemId: undefined,
   title: '',
   description: '',
   tags: '',
@@ -35,6 +37,12 @@ export default function QuickUploadModal({
   const [error, setError] = useState<string | null>(null);
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [formData, setFormData] = useState<UploadJobFormData>(initialFormData);
+  const { media } = useMediaDashboard();
+  const imageItems = useMemo(
+    () => media.filter((m) => (m.mimeType ?? '').startsWith('image/')),
+    [media]
+  );
+  const [selectedImageId, setSelectedImageId] = useState<number | null>(null);
 
   // Reset form when modal opens with new media item
   useEffect(() => {
@@ -42,6 +50,7 @@ export default function QuickUploadModal({
       setFormData({
         mediaItemId: mediaItem.id,
         youtubeChannelId: channels[0]?.id || 0,
+        thumbnailMediaItemId: imageItems[0]?.id ?? null,
         title: mediaItem.name.replace(/\.[^/.]+$/, ''),
         description: '',
         tags: '',
@@ -50,8 +59,9 @@ export default function QuickUploadModal({
       });
       setScheduleEnabled(false);
       setError(null);
+      setSelectedImageId(imageItems[0]?.id ?? null);
     }
-  }, [isOpen, mediaItem, channels]);
+  }, [isOpen, mediaItem, channels, imageItems]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -85,6 +95,25 @@ export default function QuickUploadModal({
       setLoading(false);
     }
   };
+  
+  // Keep form thumbnail in sync with selection list
+  useEffect(() => {
+    if (!isOpen) return;
+    if (imageItems.length === 0) {
+      setSelectedImageId(null);
+      setFormData((prev) => ({ ...prev, thumbnailMediaItemId: undefined }));
+      return;
+    }
+    // If current selection is missing, default to first
+    const exists = selectedImageId && imageItems.some((img) => img.id === selectedImageId);
+    const nextId = exists ? selectedImageId : imageItems[0].id;
+    setSelectedImageId(nextId);
+    setFormData((prev) => ({ ...prev, thumbnailMediaItemId: nextId ?? undefined }));
+  }, [isOpen, imageItems, selectedImageId]);
+
+  const selectedImage = selectedImageId
+    ? imageItems.find((img) => img.id === selectedImageId) ?? null
+    : null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Post to YouTube">
@@ -110,6 +139,44 @@ export default function QuickUploadModal({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="form-field">
+            <label>Thumbnail</label>
+            {imageItems.length === 0 ? (
+              <div className="alert alert-warning" style={{ marginBottom: 0 }}>
+                No images available. Upload images to Drive first.
+              </div>
+            ) : (
+              <>
+                <select
+                  className="form-select"
+                  value={selectedImageId ?? ''}
+                  onChange={(e) =>
+                    setSelectedImageId(
+                      e.target.value ? parseInt(e.target.value, 10) : null
+                    )
+                  }
+                >
+                  <option value="">No thumbnail</option>
+                  {imageItems.map((img) => (
+                    <option key={img.id} value={img.id}>
+                      {img.name}
+                    </option>
+                  ))}
+                </select>
+
+                {selectedImage && selectedImage.driveFileId && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`${API_URL}/media-preview/${selectedImage.driveFileId}/image`}
+                    alt={selectedImage.name}
+                    style={{ maxWidth: '100%', maxHeight: 160, marginTop: 8, borderRadius: 8 }}
+                  />
+                )}
+              </>
+            )}
+
           </div>
 
           <div className="form-field">

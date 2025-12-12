@@ -65,12 +65,13 @@ export default function MediaTable({
   uploadJobs,
   onPostToYouTube,
   onCreateVideo,
+  onCancelJob,
 }: MediaTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>(DEFAULT_SORT_KEY);
   const [sortDir, setSortDir] = useState<SortDir>(DEFAULT_SORT_DIR);
 
   const [search, setSearch] = useState('');
-  const [statusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const statusFilter: 'ALL' | 'ACTIVE' | 'INACTIVE' = 'ALL';
 
   const filteredAndSortedMedia = useMemo(() => {
     if (!media || media.length === 0) return [];
@@ -107,7 +108,7 @@ export default function MediaTable({
     });
 
     return items;
-  }, [media, uploadJobs, sortKey, sortDir, search, statusFilter]);
+  }, [media, uploadJobs, sortKey, sortDir, search]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -145,9 +146,8 @@ export default function MediaTable({
           <button
             key={col.key}
             type="button"
-            className={`btn btn-sm ${
-              sortKey === col.key ? 'btn-secondary' : 'btn-outline-secondary'
-            }`}
+            className={`btn btn-sm ${sortKey === col.key ? 'btn-secondary' : 'btn-outline-secondary'
+              }`}
             onClick={() => handleSort(col.key)}
           >
             {col.label}
@@ -160,58 +160,58 @@ export default function MediaTable({
       <div className="media-list-body d-flex flex-column gap-2">
         {filteredAndSortedMedia.map((item) => {
           const state = getMediaRowState(item, uploadJobs);
+          const mimeTop = (item.mimeType ?? 'unknown').split('/')[0];
+          const sizeNum = item.sizeBytes ? parseInt(item.sizeBytes, 10) || 0 : 0;
+          const handleCancel =
+            onCancelJob && state.job?.id ? () => onCancelJob(state.job.id) : undefined;
 
           return (
             <div
               key={item.id}
-              className="media-row d-flex justify-content-between align-items-stretch p-2 mb-4"
+              className={`media-row ${mimeTop}`}
             >
-              {/* Left side: preview + info */}
-              <div className="d-flex">
-                <div className="media-row-preview">
-                  <MediaPreview item={item} />
-                </div>
-
-                <div className="media-row-info flex-grow-1">
-                  <div
-                    className="media-preview-title text-truncate"
-                    title={item.name ?? undefined}
-                  >
-                    <strong>
-                      {item.folderPath ?? ''}
-                      {item.folderPath === '/' ? '' : '/'}
-                      {item.name}
-                    </strong>
-                  </div>
-
-                  <div className="media-row-meta text-muted text-sm d-flex flex-wrap gap-2">
-                    <span>{item.mimeType.split('/')[0] ?? 'Unknown'},</span>
-                    <span>{formatBytes(item.sizeBytes)},</span>
-                    <span>
-                      {item.createdAt ? new Date(item.createdAt).toLocaleString() : '—'},{' '}
-                    </span>
-                    <StatusBadge
-                      status={state.kind}
-                      scheduledTime={state.scheduledTime?.toISOString()}
-                    />
-                    {state.kind === 'failed' && state.job?.errorMessage && (
-                      <span className="text-error text-xs">{state.job.errorMessage}</span>
-                    )}
-                  </div>
-                </div>
+              <div className="media-row-preview">
+                <MediaPreview item={item} />
               </div>
 
-              {/* Right side: actions */}
-              <div className="media-row-actions d-flex align-items-center">
-                {item.status === 'ACTIVE' && (
-                  <RowActions
-                    mediaItem={item}
-                    state={state}
-                    onPostToYouTube={() => onPostToYouTube(item)}
-                    onCreateVideo={() => onCreateVideo(item)}
+                <div
+                  className="media-preview-title text-truncate"
+                  title={item.name ?? undefined}
+                >
+                  <strong>
+                    {item.folderPath ?? ''}
+                    {item.folderPath === '/' ? '' : '/'}
+                    {item.name}
+                  </strong>
+                </div>
+
+                <div className="media-row-meta text-muted text-sm d-flex flex-wrap gap-2">
+                  <span>{mimeTop ?? 'Unknown'},</span>
+                  <span>{formatBytes(sizeNum)},</span>
+                  <span>
+                    {item.createdAt ? new Date(item.createdAt).toLocaleString() : '—'},{' '}
+                  </span>
+                  <StatusBadge
+                    status={state.kind}
+                    scheduledTime={state.scheduledTime?.toISOString()}
                   />
-                )}
-              </div>
+                  {state.kind === 'failed' && state.job?.errorMessage && (
+                    <span className="text-error text-xs">{state.job.errorMessage}</span>
+                  )}
+                </div>
+
+                <div className="media-row-actions">
+                  {(item.status === 'ACTIVE' || state.kind !== 'idle') && (
+                    <RowActions
+                      mediaItem={item}
+                      state={state}
+                      onPostToYouTube={() => onPostToYouTube(item)}
+                      onCreateVideo={() => onCreateVideo(item)}
+                      onCancelJob={handleCancel}
+                    />
+                  )}
+                </div>
+
             </div>
           );
         })}

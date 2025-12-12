@@ -15,6 +15,7 @@ export interface RowActionsProps {
 type IdleActionConfig = {
   label: string;
   handlerKey: 'onPostToYouTube' | 'onCreateVideo';
+  icon: React.ReactNode;
 };
 
 /**
@@ -22,8 +23,16 @@ type IdleActionConfig = {
  * This keeps RowActions small and easy to extend.
  */
 const IDLE_ACTIONS_BY_CATEGORY: Record<MediaCategory, IdleActionConfig | null> = {
-  video: { label: 'Post to YouTube', handlerKey: 'onPostToYouTube' },
-  audio: { label: 'Create Video', handlerKey: 'onCreateVideo' },
+  video: {
+    label: 'Post to YouTube',
+    handlerKey: 'onPostToYouTube',
+    icon: <i className="fa-brands fa-youtube" aria-hidden="true" />,
+  },
+  audio: {
+    label: 'Create Video',
+    handlerKey: 'onCreateVideo',
+    icon: <i className="fa-solid fa-video" aria-hidden="true" />,
+  },
   image: null,
   other: null,
 };
@@ -49,6 +58,7 @@ export default function RowActions({
 
     return (
       <button className="btn btn-secondary btn-sm btn-item" onClick={handler}>
+        <span className="me-2">{config.icon}</span>
         {config.label}
       </button>
     );

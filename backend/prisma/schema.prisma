@@ -57,6 +57,7 @@ model MediaItem {
   audioRenderJobs   RenderJob[] @relation("AudioMediaItem")
   imageRenderJobs   RenderJob[] @relation("ImageMediaItem")
   outputRenderJobs  RenderJob[] @relation("OutputMediaItem")
+  thumbnailUploadJobs UploadJob[] @relation("ThumbnailMediaItem")
 }
 
 model YoutubeVideo {
@@ -66,6 +67,8 @@ model YoutubeVideo {
 
   youtubeChannelId Int
   youtubeChannel   YoutubeChannel  @relation(fields: [youtubeChannelId], references: [id])
+  thumbnailMediaItemId Int?
+  thumbnailMediaItem   MediaItem? @relation("VideoThumbnailMediaItem", fields: [thumbnailMediaItemId], references: [id])
 
   youtubeVideoId   String?   @unique
 
@@ -96,6 +99,8 @@ model UploadJob {
 
   youtubeVideoId    Int?
   youtubeVideo      YoutubeVideo?   @relation(fields: [youtubeVideoId], references: [id])
+  thumbnailMediaItemId Int?
+  thumbnailMediaItem   MediaItem? @relation("ThumbnailMediaItem", fields: [thumbnailMediaItemId], references: [id])
 
   title             String
   description       String

@@ -43,11 +43,31 @@ router.get('/callback', async (req, res) => {
     }
 
     // Exchange code for tokens
-    const tokens = await getTokensFromCode(code as string);
+    let tokens;
+    try {
+      tokens = await getTokensFromCode(code as string);
+      const { redirectUri } = getOAuthCredentials();
+      console.log('[OAuth] getTokens success', {
+        redirectUri,
+        hasAccess: !!tokens.access_token,
+        hasRefresh: !!tokens.refresh_token,
+        scope: tokens.scope,
+        expiry: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null,
+      });
+    } catch (tokenErr) {
+      console.error('[OAuth] getTokens failed', {
+        message: tokenErr instanceof Error ? tokenErr.message : String(tokenErr),
+        stack: tokenErr instanceof Error ? tokenErr.stack : undefined,
+      });
+      return res.status(500).json({ error: 'Failed to process OAuth callback', detail: 'token_exchange_failed' });
+    }
 
     if (!tokens.access_token) {
-      console.error('OAuth callback error: missing access_token', tokens);
-      return res.status(400).json({ error: 'Failed to obtain access token' });
+      console.error('[OAuth] missing access_token', {
+        hasRefresh: !!tokens.refresh_token,
+        scope: tokens.scope,
+      });
+      return res.status(400).json({ error: 'Failed to obtain access token', detail: 'missing_access_token' });
     }
 
     const accessToken = tokens.access_token;
@@ -64,15 +84,30 @@ router.get('/callback', async (req, res) => {
     });
 
     // Get the user's YouTube channel
-    const youtube = google.youtube({ version: 'v3', auth });
-    const channelsResponse = await youtube.channels.list({
-      part: ['snippet'],
-      mine: true,
-    });
+    let channel;
+    try {
+      const youtube = google.youtube({ version: 'v3', auth });
+      const channelsResponse = await youtube.channels.list({
+        part: ['snippet'],
+        mine: true,
+      });
+      channel = channelsResponse.data.items?.[0];
+      console.log('[OAuth] channels.list result', {
+        found: !!channel?.id,
+        channelId: channel?.id,
+        title: channel?.snippet?.title,
+      });
+    } catch (ytErr) {
+      console.error('[OAuth] channels.list failed', {
+        message: ytErr instanceof Error ? ytErr.message : String(ytErr),
+        stack: ytErr instanceof Error ? ytErr.stack : undefined,
+      });
+      return res.status(500).json({ error: 'Failed to process OAuth callback', detail: 'channels_list_failed' });
+    }
 
-    const channel = channelsResponse.data.items?.[0];
     if (!channel || !channel.id) {
-      return res.status(400).json({ error: 'No channel found' });
+      console.error('[OAuth] channels.list returned no channel');
+      return res.status(400).json({ error: 'No channel found', detail: 'no_channel' });
     }
 
     // Recover userId from state
@@ -86,7 +121,8 @@ router.get('/callback', async (req, res) => {
       }
     }
     if (!userId) {
-      return res.status(400).json({ error: 'Missing user context in OAuth state' });
+      console.error('[OAuth] missing userId in state', { state });
+      return res.status(400).json({ error: 'Missing user context in OAuth state', detail: 'missing_user' });
     }
 
     const channelId = channel.id;
@@ -121,10 +157,14 @@ router.get('/callback', async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     return res.redirect(`${frontendUrl}?channelAdded=true`);
   } catch (err) {
-    console.error('OAuth callback error:', err);
-    return res
-      .status(500)
-      .json({ error: 'Failed to process OAuth callback' });
+    console.error('OAuth callback error:', {
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    return res.redirect(
+      `${frontendUrl}?error=${encodeURIComponent('oauth_callback_failed')}`
+    );
   }
 });
 

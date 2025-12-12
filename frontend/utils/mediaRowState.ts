@@ -1,6 +1,6 @@
 import { MediaItem, UploadJob } from '../types/api';
 
-type MediaRowKind = 'idle' | 'scheduled' | 'pending' | 'running' | 'success' | 'failed' | 'missing';
+export type MediaRowKind = 'idle' | 'scheduled' | 'pending' | 'running' | 'success' | 'failed' | 'missing';
 
 export interface MediaRowState {
   kind: MediaRowKind;
@@ -8,29 +8,29 @@ export interface MediaRowState {
   scheduledTime?: Date;
 }
 
-export function getMediaRowState(
-  mediaItem: MediaItem,
-  uploadJobs: UploadJob[]
-): MediaRowState {
-  // Find latest upload job for this media item
-  const job = uploadJobs
-    .filter((j) => j.mediaItemId === mediaItem.id)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+export function getMediaRowState(mediaItem: MediaItem, uploadJobs: UploadJob[]): MediaRowState {
+  let latest: UploadJob | null = null;
+  let latestTime = -Infinity;
 
-  if (!job) {
-    return { kind: 'idle', job: null };
-  }
-
-  // Check scheduled upload
-  if (job.status === 'PENDING' && job.scheduledFor) {
-    const scheduledTime = new Date(job.scheduledFor);
-    if (scheduledTime > new Date()) {
-      return { kind: 'scheduled', job, scheduledTime };
+  for (const j of uploadJobs) {
+    if (j.mediaItemId !== mediaItem.id) continue;
+    const t = Date.parse(j.createdAt);
+    if (Number.isFinite(t) && t > latestTime) {
+      latestTime = t;
+      latest = j;
     }
   }
 
-  // Map status to state
-  const stateMap: Record<string, MediaRowKind> = {
+  if (!latest) return { kind: 'idle', job: null };
+
+  if (latest.status === 'PENDING' && latest.scheduledFor) {
+    const scheduledTime = new Date(latest.scheduledFor);
+    if (scheduledTime.getTime() > Date.now()) {
+      return { kind: 'scheduled', job: latest, scheduledTime };
+    }
+  }
+
+  const stateMap: Record<UploadJob["status"], MediaRowKind> = {
     PENDING: 'pending',
     RUNNING: 'running',
     SUCCESS: 'success',
@@ -38,5 +38,5 @@ export function getMediaRowState(
     MISSING: 'missing',
   };
 
-  return { kind: stateMap[job.status] || 'idle', job };
+  return { kind: stateMap[latest.status] ?? 'idle', job: latest };
 }

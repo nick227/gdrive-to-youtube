@@ -17,6 +17,7 @@ export const JobStatus = {
   RUNNING: 'RUNNING',
   SUCCESS: 'SUCCESS',
   FAILED: 'FAILED',
+  MISSING: 'MISSING',
 } as const;
 
 export const PrivacyStatus = {

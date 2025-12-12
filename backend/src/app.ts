@@ -20,94 +20,100 @@ validateEnv();
 
 const app = express();
 
-// CORS
+/* -----------------------------
+   1. Auto-trust the CURRENT origin
+----------------------------- */
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  process.env.BACKEND_URL,
-  'http://localhost:3000'
-].filter(Boolean);
 
-
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+  // Allow everything in dev
+  if (process.env.NODE_ENV !== 'production') {
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    if (req.method === "OPTIONS") return res.sendStatus(200);
+    return next();
   }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+  // Production: Trust ONLY the deployed frontend
+  const prodOrigin = process.env.FRONTEND_URL?.replace(/\/$/, "");
+
+  if (origin === prodOrigin) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
   }
+
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+
+  if (req.method === "OPTIONS") return res.sendStatus(200);
   next();
 });
 
 app.use(express.json({ limit: '10mb' }));
 
-// Session configuration
-const sessionSecret = process.env.SESSION_SECRET;
-if (!sessionSecret) {
-  throw new Error('SESSION_SECRET must be set in environment');
-}
+/* -----------------------------
+   2. Sessions
+----------------------------- */
 app.use(
   session({
-    secret: sessionSecret,
+    secret: process.env.SESSION_SECRET!,
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    },
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    }
   })
 );
 
-// Passport initialization
+/* -----------------------------
+   3. Passport
+----------------------------- */
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Health check (public)
+/* -----------------------------
+   4. API ROUTES (MUST BE ABOVE STATIC FRONTEND)
+----------------------------- */
 app.get('/health', async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({ ok: true, database: 'connected' });
-  } catch (err) {
-    res.status(503).json({ ok: false, database: 'disconnected', error: 'Database connection failed: ' + err });
+    res.json({ ok: true });
+  } catch (_) {
+    res.status(503).json({ ok: false });
   }
 });
 
-// Auth routes (public)
 app.use('/auth', authRoutes);
-
-// Public routes (read-only)
 app.use('/media', mediaRoutes);
 app.use('/videos', youtubeVideoRoutes);
 app.use('/channels', youtubeChannelRoutes);
 app.use('/media-preview', mediaRouter);
-// Protected routes (require authentication)
 app.use('/upload-jobs', requireAuth, uploadJobRoutes);
 app.use('/render-jobs', requireAuth, renderJobRoutes);
 
-// Serve exported Next.js frontend (static) only in production
+/* -----------------------------
+   5. Static Frontend (PRODUCTION ONLY)
+----------------------------- */
 if (process.env.NODE_ENV === 'production') {
-  // From dist/src → go to dist/public
   const frontendDir = path.resolve(__dirname, '../public');
-
   console.log("Static frontend expected at:", frontendDir);
 
   if (fs.existsSync(frontendDir)) {
     app.use(express.static(frontendDir));
 
-    // Catch-all: return index.html for non-API routes
-    app.get('*', (req, res, next) => {
-      const apiPaths = [
-        '/auth', '/media', '/videos',
-        '/channels', '/media-preview',
-        '/upload-jobs', '/render-jobs', '/health'
-      ];
+    const API_PREFIXES = [
+      '/auth', '/media', '/videos', '/channels', '/media-preview',
+      '/upload-jobs', '/render-jobs', '/health'
+    ];
 
-      if (apiPaths.some(p => req.path.startsWith(p))) {
+    // Catch-all for frontend routing
+    app.get('*', (req, res, next) => {
+      // If an API route → skip catch-all
+      if (API_PREFIXES.some(p => req.path.startsWith(p))) {
         return next();
       }
 
@@ -115,30 +121,20 @@ if (process.env.NODE_ENV === 'production') {
         if (err) next(err);
       });
     });
-  } else {
-    console.warn('Static frontend folder NOT found:', frontendDir);
   }
 }
 
-// Global error handler (must be last)
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  console.error('Unhandled error:', {
-    error: err.message,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-    path: req?.path,
-    method: req?.method,
+/* -----------------------------
+   6. Global Error Handler
+----------------------------- */
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('Unhandled error:', err);
+
+  res.status(500).json({
+    error: process.env.NODE_ENV === 'production'
+      ? 'Internal server error'
+      : err.message,
   });
-  
-  if (typeof res?.status === 'function') {
-    res.status(500).json({
-      error: process.env.NODE_ENV === 'production' 
-        ? 'Internal server error' 
-        : err.message,
-    });
-  } else {
-    // Fall back in case this is invoked outside a normal request/response cycle
-    console.error('Response object missing in error handler; cannot send HTTP response');
-  }
 });
 
 export default app;

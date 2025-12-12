@@ -65,18 +65,49 @@ export default function MediaTable({
   uploadJobs,
   onPostToYouTube,
   onCreateVideo,
-  onCancelJob,
 }: MediaTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>(DEFAULT_SORT_KEY);
   const [sortDir, setSortDir] = useState<SortDir>(DEFAULT_SORT_DIR);
 
-  // NEW: filtering state
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [statusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
 
-  if (media.length === 0) {
-    return <p className="text-muted">No media yet. Run the Drive sync worker.</p>;
-  }
+  const filteredAndSortedMedia = useMemo(() => {
+    if (!media || media.length === 0) return [];
+
+    let items = [...media];
+
+    // 1) filter by search text (name + path + mime type)
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      items = items.filter((item) => {
+        const name = (item.name ?? '').toLowerCase();
+        const p = (item.folderPath ?? '').toLowerCase();
+        const mimeType = (item.mimeType ?? '').toLowerCase();
+        return name.includes(q) || p.includes(q) || mimeType.includes(q);
+      });
+    }
+
+    // 2) filter by status
+    if (statusFilter !== 'ALL') {
+      items = items.filter((item) => item.status === statusFilter);
+    }
+
+    // 3) sort
+    items.sort((a, b) => {
+      const aVal = getSortValue(a, uploadJobs, sortKey);
+      const bVal = getSortValue(b, uploadJobs, sortKey);
+
+      const result =
+        typeof aVal === 'number' && typeof bVal === 'number'
+          ? aVal - bVal
+          : compareString(String(aVal), String(bVal));
+
+      return sortDir === 'asc' ? result : -result;
+    });
+
+    return items;
+  }, [media, uploadJobs, sortKey, sortDir, search, statusFilter]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -92,70 +123,37 @@ export default function MediaTable({
     return <span style={{ marginLeft: 6 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>;
   };
 
-  const filteredAndSortedMedia = useMemo(() => {
-    let items = [...media];
-
-    // 1) filter by search text (name + path)
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      items = items.filter((item) => {
-        const name = (item.name ?? '').toLowerCase();
-        const path = (item.folderPath ?? '').toLowerCase();
-        const mimeType = (item.mimeType ?? '').toLowerCase();
-        return name.includes(q) || path.includes(q) || mimeType.includes(q);
-      });
-    }
-
-    // 2) filter by status
-    if (statusFilter !== 'ALL') {
-      items = items.filter((item) => item.status === statusFilter);
-    }
-
-    // 3) sort
-    items.sort((a, b) => {
-      const aVal = getSortValue(a, uploadJobs, sortKey);
-      const bVal = getSortValue(b, uploadJobs, sortKey);
-
-      let result: number;
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        result = aVal - bVal;
-      } else {
-        result = compareString(String(aVal), String(bVal));
-      }
-
-      return sortDir === 'asc' ? result : -result;
-    });
-
-    return items;
-  }, [media, uploadJobs, sortKey, sortDir, search, statusFilter]);
+  if (filteredAndSortedMedia.length === 0) {
+    return <p className="text-muted">No media yet. Run the Drive sync worker.</p>;
+  }
 
   return (
     <div className="media-list">
       {/* Controls: filters + sort */}
+      <div className="d-flex align-items-center gap-4">
         {/* Search */}
-        <div className="d-flex align-items-center gap-4">
-          <input
-            type="text"
-            placeholder="Search name or path..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className='mr-4'
-          />
+        <input
+          type="text"
+          placeholder="Search name or path..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="mr-4"
+        />
 
         {/* Sort buttons */}
-          {SORTABLE_COLUMNS.map((col) => (
-            <button
-              key={col.key}
-              type="button"
-              className={`btn btn-sm ${
-                sortKey === col.key ? 'btn-secondary' : 'btn-outline-secondary'
-              }`}
-              onClick={() => handleSort(col.key)}
-            >
-              {col.label}
-              {renderSortIndicator(col.key)}
-            </button>
-          ))}
+        {SORTABLE_COLUMNS.map((col) => (
+          <button
+            key={col.key}
+            type="button"
+            className={`btn btn-sm ${
+              sortKey === col.key ? 'btn-secondary' : 'btn-outline-secondary'
+            }`}
+            onClick={() => handleSort(col.key)}
+          >
+            {col.label}
+            {renderSortIndicator(col.key)}
+          </button>
+        ))}
       </div>
 
       {/* List body */}
@@ -179,13 +177,19 @@ export default function MediaTable({
                     className="media-preview-title text-truncate"
                     title={item.name ?? undefined}
                   >
-                    <strong>{item.folderPath ?? ''}{item.folderPath === '/' ? '' : '/'}{item.name}</strong>
+                    <strong>
+                      {item.folderPath ?? ''}
+                      {item.folderPath === '/' ? '' : '/'}
+                      {item.name}
+                    </strong>
                   </div>
 
                   <div className="media-row-meta text-muted text-sm d-flex flex-wrap gap-2">
                     <span>{item.mimeType.split('/')[0] ?? 'Unknown'},</span>
                     <span>{formatBytes(item.sizeBytes)},</span>
-                    <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : '—'}, </span>
+                    <span>
+                      {item.createdAt ? new Date(item.createdAt).toLocaleString() : '—'},{' '}
+                    </span>
                     <StatusBadge
                       status={state.kind}
                       scheduledTime={state.scheduledTime?.toISOString()}

@@ -185,10 +185,10 @@ app.use(
   })
 );
 
-// Warn about MemoryStore limitations in production
+// Warn about in-memory sessions in production
 if (isProd) {
   console.warn(
-    "⚠️  WARNING: Using MemoryStore for sessions in production.\n" +
+    "WARNING: Using MemoryStore for sessions in production.\n" +
       "   Sessions will be lost on server restart and won't work with multiple instances.\n" +
       "   Consider connect-redis or connect-pg-simple for production."
   );
@@ -249,8 +249,6 @@ app.use("/render-jobs", requireAuth, renderJobRoutes);
 if (isProd) {
   const publicDir = path.resolve(__dirname, "../public");
 
-  console.log(`📁 Static frontend directory: ${publicDir}`);
-
   if (fs.existsSync(publicDir)) {
     // Serve static files with aggressive caching (good for hashed assets)
     app.use(
@@ -292,8 +290,7 @@ if (isProd) {
       });
     });
   } else {
-    console.error(`🚨 ERROR: Frontend directory not found: ${publicDir}`);
-    console.error("   Make sure to copy your Next build output to backend/public/");
+    console.error("Error: Make sure to copy your Next build output to backend/public/");
   }
 }
 
@@ -325,7 +322,9 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   });
 
   const message = isProd ? "Internal server error" : err.message;
-  const statusCode = (err as any).statusCode || 500;
+  const statusCode = Number.isInteger((err as { statusCode?: number }).statusCode)
+    ? (err as { statusCode?: number }).statusCode!
+    : 500;
 
   res.status(statusCode).json({
     error: message,
@@ -338,13 +337,11 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
 ============================================================================= */
 
 const gracefulShutdown = async (signal: string) => {
-  console.log(`\n${signal} received. Starting graceful shutdown...`);
-
   try {
     await prisma.$disconnect();
-    console.log("✓ Database connections closed");
-
-    console.log("✓ Graceful shutdown complete");
+    console.log("Database connections closed");
+    console.log("Graceful shutdown complete");
+    console.log(signal);
     process.exit(0);
   } catch (err) {
     console.error("Error during shutdown:", err);
@@ -352,8 +349,12 @@ const gracefulShutdown = async (signal: string) => {
   }
 };
 
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => {
+  void gracefulShutdown("SIGTERM");
+});
+process.on("SIGINT", () => {
+  void gracefulShutdown("SIGINT");
+});
 
 process.on("uncaughtException", (err) => {
   console.error("FATAL - Uncaught Exception:", err);
@@ -363,7 +364,7 @@ process.on("uncaughtException", (err) => {
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
-  gracefulShutdown("UNHANDLED_REJECTION");
+  void gracefulShutdown("UNHANDLED_REJECTION");
 });
 
 /* =============================================================================

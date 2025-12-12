@@ -4,7 +4,8 @@ import prisma from '../prismaClient';
 import { getOAuthCredentials } from '../utils/youtubeAuth';
 
 const { clientId, clientSecret } = getOAuthCredentials();
-const callbackURL = process.env.AUTH_CALLBACK_URL || 'http://localhost:4000/auth/google/callback';
+const publicUrl = process.env.PUBLIC_URL || 'http://localhost:4000';
+const callbackURL = process.env.AUTH_CALLBACK_URL || `${publicUrl}/auth/google/callback`;
 
 if (!clientId || !clientSecret) {
   console.warn('WARNING: Google OAuth credentials not configured. Set YOUTUBE_APPLICATION_CREDENTIALS. Google login will not work.');

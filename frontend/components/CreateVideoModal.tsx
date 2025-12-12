@@ -99,6 +99,7 @@ export default function CreateVideoModal({
                 </select>
 
                 {selectedImage && selectedImage.driveFileId && (
+                  // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={`${API_URL}/media-preview/${selectedImage.driveFileId}/image`}
                       alt={selectedImage.name}

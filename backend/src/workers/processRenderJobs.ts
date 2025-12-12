@@ -371,7 +371,6 @@ async function main(): Promise<void> {
 
 // Only run main if this file is executed directly
 if (require.main === module) {
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
   main().catch(async (err: unknown) => {
     console.error(err);
     await prisma.$disconnect();

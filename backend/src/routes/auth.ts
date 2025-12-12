@@ -25,7 +25,10 @@ router.get(
   '/google/callback',
   passport.authenticate('google', { failureRedirect: '/auth/failure' }),
   (req, res) => {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl =
+      process.env.FRONTEND_URL ||
+      process.env.PUBLIC_URL ||
+      'http://localhost:3000';
     res.redirect(`${frontendUrl}?loggedIn=true`);
   }
 );

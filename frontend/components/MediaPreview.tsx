@@ -32,6 +32,7 @@ export default function MediaPreview({ item }: MediaPreviewProps) {
 
   if (category === 'image') {
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={item.name}

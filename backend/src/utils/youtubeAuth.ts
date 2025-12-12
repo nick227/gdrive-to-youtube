@@ -4,12 +4,26 @@ import prisma from '../prismaClient';
 import fs from 'fs';
 import path from 'node:path';
 
+type GoogleOAuthJson = {
+  web?: {
+    client_id: string;
+    client_secret: string;
+    redirect_uris?: string[];
+  };
+  installed?: {
+    client_id: string;
+    client_secret: string;
+    redirect_uris?: string[];
+  };
+};
+
 /**
  * Default fallback redirect.
  */
+const PUBLIC_URL = process.env.PUBLIC_URL || 'http://localhost:4000';
 const DEFAULT_REDIRECT_URI =
   process.env.YOUTUBE_REDIRECT_URI ||
-  'http://localhost:4000/channels/callback';
+  `${PUBLIC_URL}/channels/callback`;
 
 /**
  * Read YouTube OAuth credentials.
@@ -23,7 +37,7 @@ export function getOAuthCredentials() {
 
   if (raw) {
     try {
-      let json: any;
+      let json: GoogleOAuthJson | undefined;
 
       // Case A — Raw JSON string in Railway
       if (raw.trim().startsWith('{')) {

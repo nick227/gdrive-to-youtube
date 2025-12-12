@@ -126,7 +126,7 @@ export default function Page() {
 
       {user && channels.length === 0 && (
         <div className="alert alert-warning">
-          No YouTube channels connected. Use "Connect YouTube channel" to add one.
+          No YouTube channels connected
         </div>
       )}
 

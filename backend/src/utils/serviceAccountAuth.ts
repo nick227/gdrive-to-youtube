@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { google } from 'googleapis';
+import { JWTInput } from 'google-auth-library';
 
 export function getServiceAccountAuth(scopes: string[]) {
   const raw = process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -29,7 +30,7 @@ export function getServiceAccountAuth(scopes: string[]) {
   }
 
   // 4) Now trimmed should be a raw JSON object string: "{...}"
-  const credentials: any = JSON.parse(trimmed);
+  const credentials: JWTInput = JSON.parse(trimmed) as JWTInput;
 
   // Ensure private_key has real newlines (in case they are escaped)
   if (typeof credentials.private_key === 'string') {

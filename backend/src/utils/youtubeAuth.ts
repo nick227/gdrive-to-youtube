@@ -50,19 +50,22 @@ export function getOAuthCredentials() {
       }
 
       if (json?.web) {
+        const envRedirect = process.env.YOUTUBE_REDIRECT_URI;
         return {
           clientId: json.web.client_id,
           clientSecret: json.web.client_secret,
-          redirectUri: json.web.redirect_uris?.[0] || DEFAULT_REDIRECT_URI,
+          // Env override wins; otherwise fall back to first redirect in credentials
+          redirectUri: envRedirect || json.web.redirect_uris?.[0] || DEFAULT_REDIRECT_URI,
         };
       }
 
       if (json?.installed) {
+        const envRedirect = process.env.YOUTUBE_REDIRECT_URI;
         return {
           clientId: json.installed.client_id,
           clientSecret: json.installed.client_secret,
           redirectUri:
-            json.installed.redirect_uris?.[0] || DEFAULT_REDIRECT_URI,
+            envRedirect || json.installed.redirect_uris?.[0] || DEFAULT_REDIRECT_URI,
         };
       }
     } catch (err) {

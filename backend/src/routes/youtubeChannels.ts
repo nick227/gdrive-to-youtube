@@ -46,6 +46,7 @@ router.get('/callback', async (req, res) => {
     const tokens = await getTokensFromCode(code as string);
 
     if (!tokens.access_token) {
+      console.error('OAuth callback error: missing access_token', tokens);
       return res.status(400).json({ error: 'Failed to obtain access token' });
     }
 

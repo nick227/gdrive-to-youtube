@@ -245,7 +245,7 @@ export default function MediaTable({
     });
 
     return items;
-  }, [enrichedMedia, sortKey, sortDir, search, mimeTypeFilters, showOtherTypes]);
+  }, [enrichedMedia, sortKey, sortDir, search, mimeFilters]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -288,7 +288,7 @@ export default function MediaTable({
                 key={type}
                 type="button"
                 className={`btn btn-sm ${
-                  mimeTypeFilters.has(type) ? 'btn-primary' : 'btn-outline-secondary'
+                  mimeFilters.allowed.has(type) ? 'btn-primary' : 'btn-outline-secondary'
                 }`}
                 onClick={() => toggleMimeType(type)}
               >
@@ -298,7 +298,7 @@ export default function MediaTable({
             <button
               type="button"
               className={`btn btn-sm ${
-                showOtherTypes ? 'btn-primary' : 'btn-outline-secondary'
+                mimeFilters.showOther ? 'btn-primary' : 'btn-outline-secondary'
               }`}
               onClick={toggleOtherTypes}
             >

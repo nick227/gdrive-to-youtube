@@ -58,6 +58,7 @@ model MediaItem {
   imageRenderJobs   RenderJob[] @relation("ImageMediaItem")
   outputRenderJobs  RenderJob[] @relation("OutputMediaItem")
   thumbnailUploadJobs UploadJob[] @relation("ThumbnailMediaItem")
+  videoThumbnails   YoutubeVideo[] @relation("VideoThumbnailMediaItem")
 }
 
 model YoutubeVideo {

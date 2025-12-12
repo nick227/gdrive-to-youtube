@@ -85,3 +85,37 @@ export async function downloadFileFromDrive(driveFileId: string): Promise<{ stre
   };
 }
 
+async function downloadImageFromDrive(driveFileId: string): Promise<Readable> {
+  const auth = getServiceAccountAuth([
+    'https://www.googleapis.com/auth/drive.readonly',
+  ]);
+
+  const drive = google.drive({ version: 'v3', auth });
+
+  const fileResponse = await drive.files.get(
+    {
+      fileId: driveFileId,
+      alt: 'media',
+    },
+    { responseType: 'stream' }
+  );
+
+  return fileResponse.data as Readable;
+}
+
+export async function uploadVideoThumbnailFromDrive(
+  channelId: string,
+  youtubeVideoId: string,
+  driveFileId: string
+): Promise<void> {
+  const auth = await getOrRefreshChannelAuth(channelId);
+  const youtube = google.youtube({ version: 'v3', auth });
+
+  const thumbnailStream = await downloadImageFromDrive(driveFileId);
+
+  await youtube.thumbnails.set({
+    videoId: youtubeVideoId,
+    media: { body: thumbnailStream },
+  });
+}
+

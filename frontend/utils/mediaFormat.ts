@@ -2,9 +2,9 @@
  * Human-readable byte formatter shared across media views.
  */
 export function formatBytes(bytes: string | number | null | undefined): string {
-  if (bytes === null || bytes === undefined) return '-?"';
+  if (bytes === null || bytes === undefined) return 'N/A';
   const num = typeof bytes === 'number' ? bytes : parseInt(bytes, 10);
-  if (Number.isNaN(num)) return '-?"';
+  if (Number.isNaN(num)) return 'N/A';
 
   if (num < 1024) return `${num} B`;
   if (num < 1024 * 1024) return `${(num / 1024).toFixed(1)} KB`;

@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import prisma from '../prismaClient';
-import { uploadVideoToYouTube, downloadFileFromDrive } from '../utils/youtubeUpload';
+import { uploadVideoToYouTube, downloadFileFromDrive, uploadVideoThumbnailFromDrive } from '../utils/youtubeUpload';
 import type { UploadJob, MediaItem, YoutubeChannel } from '@prisma/client';
 
 dotenv.config();
@@ -8,6 +8,7 @@ dotenv.config();
 type UploadJobWithRelations = UploadJob & {
   mediaItem: MediaItem;
   youtubeChannel: YoutubeChannel;
+  thumbnailMediaItem?: MediaItem | null;
 };
 
 export async function processUploadJob(job: UploadJobWithRelations): Promise<void> {
@@ -67,8 +68,22 @@ export async function processUploadJob(job: UploadJobWithRelations): Promise<voi
         privacyStatus: job.privacyStatus,
         publishAt: job.scheduledFor,
         status: videoStatus,
+        thumbnailMediaItemId: job.thumbnailMediaItemId ?? null,
       },
     });
+
+    // If a thumbnail was provided, upload it to YouTube
+    if (job.thumbnailMediaItem?.driveFileId) {
+      try {
+        await uploadVideoThumbnailFromDrive(
+          job.youtubeChannel.channelId,
+          youtubeVideoId,
+          job.thumbnailMediaItem.driveFileId
+        );
+      } catch (thumbErr) {
+        console.warn(`Failed to upload thumbnail for job ${job.id}:`, thumbErr);
+      }
+    }
 
     // Link YoutubeVideo to UploadJob and mark success
     await prisma.uploadJob.update({
@@ -111,6 +126,7 @@ async function main() {
     include: {
       mediaItem: true,
       youtubeChannel: true,
+      thumbnailMediaItem: true,
     },
     take: 10,
   });

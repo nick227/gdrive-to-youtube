@@ -132,7 +132,6 @@ export default function MediaTable({
     <div className="media-list">
       {/* Controls: filters + sort */}
       <div className="d-flex align-items-center gap-4">
-        {/* Search */}
         <input
           type="text"
           placeholder="Search name or path..."
@@ -141,13 +140,13 @@ export default function MediaTable({
           className="mr-4"
         />
 
-        {/* Sort buttons */}
         {SORTABLE_COLUMNS.map((col) => (
           <button
             key={col.key}
             type="button"
-            className={`btn btn-sm ${sortKey === col.key ? 'btn-secondary' : 'btn-outline-secondary'
-              }`}
+            className={`btn btn-sm ${
+              sortKey === col.key ? 'btn-secondary' : 'btn-outline-secondary'
+            }`}
             onClick={() => handleSort(col.key)}
           >
             {col.label}
@@ -162,56 +161,54 @@ export default function MediaTable({
           const state = getMediaRowState(item, uploadJobs);
           const mimeTop = (item.mimeType ?? 'unknown').split('/')[0];
           const sizeNum = item.sizeBytes ? parseInt(item.sizeBytes, 10) || 0 : 0;
+
+          const jobId = state.job?.id;
           const handleCancel =
-            onCancelJob && state.job?.id ? () => onCancelJob(state.job.id) : undefined;
+            onCancelJob && jobId != null ? () => onCancelJob(jobId) : undefined;
 
           return (
-            <div
-              key={item.id}
-              className={`media-row ${mimeTop}`}
-            >
+            <div key={item.id} className={`media-row ${mimeTop}`}>
               <div className="media-row-preview">
                 <MediaPreview item={item} />
               </div>
 
-                <div
-                  className="media-preview-title text-truncate"
-                  title={item.name ?? undefined}
-                >
-                  <strong>
-                    {item.folderPath ?? ''}
-                    {item.folderPath === '/' ? '' : '/'}
-                    {item.name}
-                  </strong>
-                </div>
+              <div
+                className="media-preview-title text-truncate"
+                title={item.name ?? undefined}
+              >
+                <strong>
+                  {item.folderPath ?? ''}
+                  {item.folderPath === '/' ? '' : '/'}
+                  {item.name}
+                </strong>
+              </div>
 
-                <div className="media-row-meta text-muted text-sm d-flex flex-wrap gap-2">
-                  <span>{mimeTop ?? 'Unknown'},</span>
-                  <span>{formatBytes(sizeNum)},</span>
-                  <span>
-                    {item.createdAt ? new Date(item.createdAt).toLocaleString() : '—'},{' '}
-                  </span>
-                  <StatusBadge
-                    status={state.kind}
-                    scheduledTime={state.scheduledTime?.toISOString()}
+              <div className="media-row-meta text-muted text-sm d-flex flex-wrap gap-2">
+                <span>{mimeTop},</span>
+                <span>{formatBytes(sizeNum)},</span>
+                <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : '—'}, </span>
+
+                <StatusBadge
+                  status={state.kind}
+                  scheduledTime={state.scheduledTime?.toISOString()}
+                />
+
+                {state.kind === 'failed' && state.job?.errorMessage && (
+                  <span className="text-error text-xs">{state.job.errorMessage}</span>
+                )}
+              </div>
+
+              <div className="media-row-actions">
+                {(item.status === 'ACTIVE' || state.kind !== 'idle') && (
+                  <RowActions
+                    mediaItem={item}
+                    state={state}
+                    onPostToYouTube={() => onPostToYouTube(item)}
+                    onCreateVideo={() => onCreateVideo(item)}
+                    onCancelJob={handleCancel}
                   />
-                  {state.kind === 'failed' && state.job?.errorMessage && (
-                    <span className="text-error text-xs">{state.job.errorMessage}</span>
-                  )}
-                </div>
-
-                <div className="media-row-actions">
-                  {(item.status === 'ACTIVE' || state.kind !== 'idle') && (
-                    <RowActions
-                      mediaItem={item}
-                      state={state}
-                      onPostToYouTube={() => onPostToYouTube(item)}
-                      onCreateVideo={() => onCreateVideo(item)}
-                      onCancelJob={handleCancel}
-                    />
-                  )}
-                </div>
-
+                )}
+              </div>
             </div>
           );
         })}

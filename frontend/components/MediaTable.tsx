@@ -33,7 +33,7 @@ const SORTABLE_COLUMNS: { key: SortKey; label: string }[] = [
 const DEFAULT_SORT_KEY: SortKey = 'name';
 const DEFAULT_SORT_DIR: SortDir = 'asc';
 
-// Define priority order for state sorting (lower = higher priority)
+// Define priority order for state sorting (lower = higher priority).
 const STATE_PRIORITY: Record<MediaRowKind, number> = {
   running: 0,
   pending: 1,

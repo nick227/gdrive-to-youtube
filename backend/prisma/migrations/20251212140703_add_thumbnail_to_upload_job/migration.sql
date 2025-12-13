@@ -1,8 +1,9 @@
 -- AlterTable
-ALTER TABLE `uploadjob` ADD COLUMN `thumbnailMediaItemId` INTEGER NULL;
+-- Use correct table casing to work across case-sensitive filesystems
+ALTER TABLE `UploadJob` ADD COLUMN `thumbnailMediaItemId` INTEGER NULL;
 
 -- AlterTable
-ALTER TABLE `youtubevideo` ADD COLUMN `thumbnailMediaItemId` INTEGER NULL;
+ALTER TABLE `YoutubeVideo` ADD COLUMN `thumbnailMediaItemId` INTEGER NULL;
 
 -- AddForeignKey
 ALTER TABLE `YoutubeVideo` ADD CONSTRAINT `YoutubeVideo_thumbnailMediaItemId_fkey` FOREIGN KEY (`thumbnailMediaItemId`) REFERENCES `MediaItem`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;

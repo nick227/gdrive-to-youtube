@@ -22,7 +22,7 @@ type SortDir = 'asc' | 'desc';
 type MimeTypeFilter = 'image' | 'video' | 'audio';
 
 const SORTABLE_COLUMNS: { key: SortKey; label: string }[] = [
-  { key: 'name', label: 'File' },
+  { key: 'name', label: 'File Name' },
   { key: 'folderPath', label: 'Path' },
   { key: 'createdAt', label: 'Created' },
   { key: 'mimeType', label: 'Type' },
@@ -472,7 +472,14 @@ export default function MediaTable({
 
             return (
               <div key={stableKey} className={`media-row ${mimeCategory}`}>
-                <div className={`flex justify-between items-center media-row-type ${mimeCategory}`}>{mimeCategory}
+                <div className={`flex justify-between items-center media-row-type ${mimeCategory}`}>
+                  <div className='flex justify-between items-center'>
+                    {mimeCategory === 'other' && <i className="fa-regular fa-question" />}
+                    {mimeCategory === 'image' && <i className="fa-regular fa-image" />}
+                    {mimeCategory === 'video' && <i className="fa-regular fa-video" />}
+                    {mimeCategory === 'audio' && <i className="fa-solid fa-music" />}
+                    <span className='pl-2 pr-2'>{mimeCategory}</span>
+                  </div>
                   {shouldShowActions && (
                     <RowActions
                       mediaItem={item}
@@ -487,10 +494,10 @@ export default function MediaTable({
                   <MediaPreview item={item} />
                 </div>
 
-                <div className="media-preview-title text-truncate" title={fullPath}>
+                <div className="media-preview-title truncate" title={fullPath}>
                   <strong>{fullPath}</strong>
                 </div>
-                
+
                 <div className="media-row-meta text-muted text-sm d-flex flex-wrap gap-2">
                   <StatusBadge
                     status={state.kind}

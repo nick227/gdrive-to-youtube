@@ -139,6 +139,7 @@ export default function Page() {
         </div>
       )}
 
+      {user && (
       <section className="section">
         <MediaTable
           media={media}
@@ -149,7 +150,10 @@ export default function Page() {
           onCancelJob={handleCancelJob}
         />
       </section>
+      )}
 
+
+      {user && (
       <QuickUploadModal
         isOpen={quickUploadOpen}
         mediaItem={selectedMediaItem}
@@ -157,7 +161,9 @@ export default function Page() {
         onClose={closeModals}
         onSuccess={handleModalSuccess}
       />
+      )}
 
+      {user && (
       <CreateVideoModal
         isOpen={createVideoOpen}
         audioItem={selectedMediaItem}
@@ -165,6 +171,13 @@ export default function Page() {
         onClose={closeModals}
         onSuccess={handleModalSuccess}
       />
+      )}
+
+      {!user && (
+        <div>
+          Hey everybody
+        </div>
+      )}
     </main>
   );
 }

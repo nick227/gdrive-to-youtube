@@ -30,10 +30,38 @@ export default function MediaPreview({ item }: MediaPreviewProps) {
     return <span className="text-muted text-xs">No preview</span>;
   }
 
+  const showImage = () => {
+    if (!src) return;
+
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '9999';
+    overlay.style.cursor = 'pointer';
+
+    const img = document.createElement('img');
+    img.src = src;
+    img.style.maxWidth = '90vw';
+    img.style.maxHeight = '90vh';
+    img.style.objectFit = 'contain';
+
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+
+    overlay.onclick = () => {
+      document.body.removeChild(overlay);
+    };
+  };
+
+
   if (category === 'image') {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
+        onClick={showImage}
         src={src}
         alt={item.name}
         style={{
@@ -45,7 +73,19 @@ export default function MediaPreview({ item }: MediaPreviewProps) {
   }
 
   if (category === 'audio') {
-    return <audio controls src={src} style={{ display: 'block' }} />;
+    return (
+      <div>
+        <img
+          src="https://snapbuilder.com/code_snippet_generator/image_placeholder_generator/640x480/f5f5f5/DDDDDD/Audio"
+          alt="Audio"
+          style={{
+            objectFit: 'contain',
+            display: 'block',
+          }}
+        />
+        <audio controls src={src} />
+      </div>
+    );
   }
 
   if (category === 'video') {

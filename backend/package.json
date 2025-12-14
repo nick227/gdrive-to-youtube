@@ -5,6 +5,7 @@
   "description": "Backend for YouTube upload manager using Google Drive + Prisma + MySQL.",
   "main": "dist/src/server.js",
   "scripts": {
+    "prebuild": "prisma validate",
     "dev": "ts-node src/server.ts",
     "build": "tsc && node scripts/copy-frontend.js",
     "start": "node dist/src/server.js",

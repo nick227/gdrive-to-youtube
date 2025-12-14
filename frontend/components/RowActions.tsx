@@ -64,15 +64,6 @@ export default function RowActions({
     );
   }
 
-  // Failed state: show dismiss button
-  if (state.kind === 'failed') {
-    return onCancelJob ? (
-      <button className="btn btn-secondary btn-sm btn-item" onClick={onCancelJob}>
-        Dismiss
-      </button>
-    ) : null;
-  }
-
   // Pending/Scheduled/Running: show cancel button
   return onCancelJob ? (
     <button className="btn btn-secondary btn-sm btn-item" onClick={onCancelJob}>

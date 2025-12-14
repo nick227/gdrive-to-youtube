@@ -419,7 +419,7 @@ export default function MediaTable({
             type="button"
             aria-pressed={mimeFilters.allowed.has(type)}
             className={`btn btn-sm ${
-              mimeFilters.allowed.has(type) ? 'btn-secondary' : 'btn-dark'
+              mimeFilters.allowed.has(type) ? 'btn-dark' : 'btn-secondary'
             }`}
             onClick={() => toggleMimeType(type)}
           >
@@ -430,7 +430,7 @@ export default function MediaTable({
               type="button"
               aria-pressed={mimeFilters.showOther}
               className={`btn btn-sm ${
-                mimeFilters.showOther ? 'btn-secondary' : 'btn-dark'
+                mimeFilters.showOther ? 'btn-dark' : 'btn-secondary'
               }`}
               onClick={toggleOtherTypes}
             >

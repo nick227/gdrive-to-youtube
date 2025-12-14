@@ -13,6 +13,13 @@ type UploadJobWithRelations = UploadJob & {
   thumbnailMediaItem?: MediaItem | null;
 };
 
+function formatError(err: unknown): string {
+  if (err instanceof Error) {
+    return `${err.message}${err.stack ? ` | stack: ${err.stack.split('\n')[0]}` : ''}`;
+  }
+  return typeof err === 'string' ? err : 'Unknown error';
+}
+
 export async function processUploadJob(job: UploadJobWithRelations): Promise<void> {
   // Claim the job atomically; skip if already processed
   const claimed = await prisma.uploadJob.updateMany({
@@ -113,8 +120,8 @@ export async function processUploadJob(job: UploadJobWithRelations): Promise<voi
     console.log(`Job ${job.id} completed successfully`);
   } catch (error) {
     console.error(`Job ${job.id} failed:`, error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    const errorMessage = formatError(error);
     await prisma.uploadJob.update({
       where: { id: job.id },
       data: {

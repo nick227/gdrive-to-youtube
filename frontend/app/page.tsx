@@ -131,7 +131,7 @@ export default function Page() {
         </div>
       )}
 
-      {user && channels.length !== 0 && (
+      {user && (
         <div className="history-panel">
           <PendingJobsList
             uploadJobs={uploadJobs}

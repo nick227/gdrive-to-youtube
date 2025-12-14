@@ -22,6 +22,13 @@ type RenderJobWithRelations = RenderJob & {
   imageMediaItem: MediaItem | null;
 };
 
+function formatError(err: unknown): string {
+  if (err instanceof Error) {
+    return `${err.message}${err.stack ? ` | stack: ${err.stack.split('\n')[0]}` : ''}`;
+  }
+  return typeof err === 'string' ? err : 'Unknown error';
+}
+
 // ---- DRIVE CLIENTS ----
 
 // Service account client: READ (download) from Drive
@@ -305,13 +312,12 @@ export async function processRenderJob(
   } catch (error) {
     console.error(`Render job ${job.id} failed:`, error);
 
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = formatError(error);
     await prisma.renderJob.update({
       where: { id: job.id },
       data: {
         status: 'FAILED',
-        errorMessage: errorMessage.substring(0, 191),
+        errorMessage,
       },
     });
   } finally {

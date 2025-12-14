@@ -490,7 +490,7 @@ export default function MediaTable({
                 <div className="media-preview-title text-truncate" title={fullPath}>
                   <strong>{fullPath}</strong>
                 </div>
-
+                
                 <div className="media-row-meta text-muted text-sm d-flex flex-wrap gap-2">
                   <StatusBadge
                     status={state.kind}
@@ -501,29 +501,29 @@ export default function MediaTable({
                     }
                   />
 
-                    {/* conditional usage based on file type */}
-                    {mimeCategory === 'video' && (
-                      <span className="text-muted text-xs truncate">
-                        uploaded: {usage.uploadCount}
-                        {usage.latestUploadStatus ? ` (${usage.latestUploadStatus.toLowerCase()})` : ''}
-                      </span>
-                    )}
-                    {mimeCategory === 'audio' && (
-                      <span className="text-muted text-xs truncate">
-                        used: {usage.renderAudioCount}
-                        {usage.latestRenderStatus ? ` (${usage.latestRenderStatus.toLowerCase()})` : ''}
-                      </span>
-                    )}
-                    {mimeCategory === 'image' && (
-                      <span className="text-muted text-xs truncate">
-                        used: {usage.renderImageCount}
-                        {usage.latestRenderStatus ? ` (${usage.latestRenderStatus.toLowerCase()})` : ''}
-                      </span>
-                    )}
+                  {/* conditional usage based on file type */}
+                  {mimeCategory === 'video' && (
+                    <span className="text-muted text-xs">
+                      uploaded: {usage.uploadCount}
+                      {usage.latestUploadStatus ? ` (${usage.latestUploadStatus.toLowerCase()})` : ''}
+                    </span>
+                  )}
+                  {mimeCategory === 'audio' && (
+                    <span className="text-muted text-xs">
+                      used: {usage.renderAudioCount}
+                      {usage.latestRenderStatus ? ` (${usage.latestRenderStatus.toLowerCase()})` : ''}
+                    </span>
+                  )}
+                  {mimeCategory === 'image' && (
+                    <span className="text-muted text-xs">
+                      used: {usage.renderImageCount}
+                      {usage.latestRenderStatus ? ` (${usage.latestRenderStatus.toLowerCase()})` : ''}
+                    </span>
+                  )}
 
-                    {state.kind === 'failed' && state.job && (
-                      <span className="text-error text-xs truncate">{state.job.errorMessage}</span>
-                    )}
+                  {state.kind === 'failed' && state.job && (
+                    <span className="text-error text-xs">{state.job.errorMessage}</span>
+                  )}
                 </div>
               </div>
             );

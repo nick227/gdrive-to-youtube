@@ -1,11 +1,17 @@
 import { Router } from 'express';
 import prisma from '../prismaClient';
+import { getCurrentUser } from '../auth/middleware';
 
 const router = Router();
 
 // Create a new render job
 router.post('/', async (req, res) => {
   try {
+    const user = getCurrentUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
     const { audioMediaItemId, imageMediaItemId, waveformConfig } = req.body;
 
     if (!audioMediaItemId) {
@@ -44,12 +50,14 @@ router.post('/', async (req, res) => {
       data: {
         audioMediaItemId,
         imageMediaItemId,
+        requestedByUserId: user.id,
         waveformConfig: waveformConfig ? JSON.stringify(waveformConfig) : null,
         status: 'PENDING',
       },
       include: {
         audioMediaItem: true,
         imageMediaItem: true,
+        requestedByUser: true,
       },
     });
 
@@ -63,6 +71,9 @@ router.post('/', async (req, res) => {
         ...renderJob.imageMediaItem,
         sizeBytes: renderJob.imageMediaItem.sizeBytes?.toString() ?? null,
       } : null,
+      requestedByUser: renderJob.requestedByUser
+        ? { id: renderJob.requestedByUser.id, email: renderJob.requestedByUser.email, name: renderJob.requestedByUser.name }
+        : null,
     };
 
     res.status(201).json(serialized);
@@ -82,6 +93,7 @@ router.get('/', async (req, res) => {
         audioMediaItem: true,
         imageMediaItem: true,
         outputMediaItem: true,
+        requestedByUser: true,
       },
     });
 
@@ -99,6 +111,9 @@ router.get('/', async (req, res) => {
         ...job.outputMediaItem,
         sizeBytes: job.outputMediaItem.sizeBytes?.toString() ?? null,
       } : null,
+      requestedByUser: job.requestedByUser
+        ? { id: job.requestedByUser.id, email: job.requestedByUser.email, name: job.requestedByUser.name }
+        : null,
     }));
 
     res.json(serialized);
@@ -109,4 +124,3 @@ router.get('/', async (req, res) => {
 });
 
 export default router;
-

@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMediaDashboard } from '../hooks/useMediaDashboard';
 import MediaTable from '../components/MediaTable';
+import PendingJobsList from '../components/PendingJobsList';
 import QuickUploadModal from '../components/QuickUploadModal';
 import CreateVideoModal from '../components/CreateVideoModal';
 import { MediaItem } from '../types/api';
@@ -11,7 +12,7 @@ import { API_URL } from '../config/api';
 
 export default function Page() {
   const { user, loading: authLoading, login, logout } = useAuth();
-  const { media, uploadJobs, channels, loading, error, reload } = useMediaDashboard();
+  const { media, uploadJobs, renderJobs, channels, loading, error, reload } = useMediaDashboard();
   const [selectedMediaItem, setSelectedMediaItem] = useState<MediaItem | null>(null);
   const [quickUploadOpen, setQuickUploadOpen] = useState(false);
   const [createVideoOpen, setCreateVideoOpen] = useState(false);
@@ -130,10 +131,22 @@ export default function Page() {
         </div>
       )}
 
+      {user && channels.length !== 0 && (
+        <div className="history-panel">
+          <PendingJobsList
+            uploadJobs={uploadJobs}
+            renderJobs={renderJobs}
+            onRefresh={reload}
+            loading={loading}
+          />
+        </div>
+      )}
+
       <section className="section">
         <MediaTable
           media={media}
           uploadJobs={uploadJobs}
+          renderJobs={renderJobs}
           onPostToYouTube={openUploadModal}
           onCreateVideo={openCreateVideoModal}
           onCancelJob={handleCancelJob}

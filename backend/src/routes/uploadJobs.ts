@@ -75,10 +75,11 @@ router.get('/', async (req, res) => {
       where: whereClause,
       orderBy: { createdAt: 'desc' },
       take: 100,
-      include: {
-        mediaItem: true,
-        youtubeChannel: true,
-      },
+    include: {
+      mediaItem: true,
+      youtubeChannel: true,
+      requestedByUser: true,
+    },
     });
     
     const serializedJobs = jobs.map(job => ({
@@ -87,6 +88,9 @@ router.get('/', async (req, res) => {
         ...job.mediaItem,
         sizeBytes: job.mediaItem.sizeBytes ? job.mediaItem.sizeBytes.toString() : null,
       } : null,
+      requestedByUser: job.requestedByUser
+        ? { id: job.requestedByUser.id, email: job.requestedByUser.email, name: job.requestedByUser.name }
+        : null,
     }));
     
     res.json(serializedJobs);

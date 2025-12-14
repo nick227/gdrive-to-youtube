@@ -22,6 +22,7 @@
   --color-scheduled-text: #3d3d7d;
   --color-idle-bg: #e9ecef;
   --color-idle-text: #495057;
+  --color-dark: #030303;
 
   /* Colors - Neutral */
   --color-bg: white;
@@ -71,7 +72,7 @@
   --z-modal: 1000;
 
   /* Layout */
-  --max-width-item: 11.3vw;
+  --max-width-item: 188px;
   --max-width-page: 48vw;
   --max-width-modal: 777px;
 }

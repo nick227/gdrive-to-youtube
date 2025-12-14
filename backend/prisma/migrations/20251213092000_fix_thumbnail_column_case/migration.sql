@@ -1,5 +1,18 @@
 -- Ensure thumbnailMediaItemId exists on UploadJob with correct casing + FK/index
-ALTER TABLE `UploadJob` ADD COLUMN IF NOT EXISTS `thumbnailMediaItemId` INTEGER NULL;
+SET @uploadjob_col_count := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'UploadJob'
+    AND column_name = 'thumbnailMediaItemId'
+);
+SET @uploadjob_col_stmt := IF(
+  @uploadjob_col_count = 0,
+  'ALTER TABLE `UploadJob` ADD COLUMN `thumbnailMediaItemId` INTEGER NULL',
+  'SELECT 1'
+);
+PREPARE uploadjob_col_stmt FROM @uploadjob_col_stmt;
+EXECUTE uploadjob_col_stmt;
+DEALLOCATE PREPARE uploadjob_col_stmt;
 
 SET @uploadjob_fk_name := (
   SELECT CONSTRAINT_NAME
@@ -36,7 +49,20 @@ EXECUTE uploadjob_idx_stmt;
 DEALLOCATE PREPARE uploadjob_idx_stmt;
 
 -- Ensure thumbnailMediaItemId exists on YoutubeVideo with correct casing + FK/index
-ALTER TABLE `YoutubeVideo` ADD COLUMN IF NOT EXISTS `thumbnailMediaItemId` INTEGER NULL;
+SET @youtubevideo_col_count := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'YoutubeVideo'
+    AND column_name = 'thumbnailMediaItemId'
+);
+SET @youtubevideo_col_stmt := IF(
+  @youtubevideo_col_count = 0,
+  'ALTER TABLE `YoutubeVideo` ADD COLUMN `thumbnailMediaItemId` INTEGER NULL',
+  'SELECT 1'
+);
+PREPARE youtubevideo_col_stmt FROM @youtubevideo_col_stmt;
+EXECUTE youtubevideo_col_stmt;
+DEALLOCATE PREPARE youtubevideo_col_stmt;
 
 SET @youtubevideo_fk_name := (
   SELECT CONSTRAINT_NAME

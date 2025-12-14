@@ -19,6 +19,7 @@ model User {
 
   youtubeChannelLinks YoutubeChannelLink[]
   uploadJobs          UploadJob[]
+  renderJobs          RenderJob[]
 
   @@index([email])
   @@index([googleSub])
@@ -163,6 +164,9 @@ model RenderJob {
   outputMediaItemId Int?
   outputMediaItem   MediaItem? @relation("OutputMediaItem", fields: [outputMediaItemId], references: [id], onDelete: SetNull)
 
+  requestedByUserId Int?
+  requestedByUser   User?     @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
   waveformConfig   String?   @db.Text
 
   status           JobStatus @default(PENDING)
@@ -174,6 +178,7 @@ model RenderJob {
   @@index([audioMediaItemId])
   @@index([imageMediaItemId])
   @@index([outputMediaItemId])
+  @@index([requestedByUserId])
   @@index([status])
 }
 

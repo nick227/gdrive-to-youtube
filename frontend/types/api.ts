@@ -76,6 +76,11 @@ export interface UploadJob {
   thumbnailMediaItem?: MediaItem | null;
   youtubeChannel?: YoutubeChannel;
   youtubeVideo?: YoutubeVideo | null;
+  requestedByUser?: {
+    id: number;
+    email: string;
+    name: string | null;
+  } | null;
 }
 
 export interface RenderJob {
@@ -84,6 +89,7 @@ export interface RenderJob {
   imageMediaItemId: number | null; // FIXED: was required, should be nullable
   outputMediaItemId: number | null;
   waveformConfig: string | null; // ADDED: was missing
+  requestedByUserId?: number | null;
   status: JobStatus;
   errorMessage: string | null;
   createdAt: string;
@@ -91,6 +97,11 @@ export interface RenderJob {
   audioMediaItem?: MediaItem;
   imageMediaItem?: MediaItem | null;
   outputMediaItem?: MediaItem | null;
+  requestedByUser?: {
+    id: number;
+    email: string;
+    name: string | null;
+  } | null;
 }
 
 // ============================================================================

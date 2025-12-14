@@ -2,6 +2,17 @@
    Shared Component Styles
    ========================================================================== */
 
+input[type="text"] {
+  border: 1px solid var(--color-bg-muted);
+  height: 35px;
+  padding: 0 8px;
+}
+
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
 
 /* --------------------------------------------------------------------------
    Buttons
@@ -16,11 +27,17 @@
   border: none;
   outline: none;
   white-space: nowrap;
+  height: 35px;
+}
+
+.btn-dark {
+  background-color: var(--color-dark);
+  color: white;
 }
 
 .btn-primary {
-  background: var(--color-primary);
-  color: white;
+  background: var(--color-bg);
+  color: var(--color-text);
   border: none;
 }
 
@@ -30,7 +47,7 @@
 
 .btn-secondary,
 .btn-outline-secondary {
-  background: var(--color-bg);
+  background: var(--color-bg-muted);
   color: var(--color-text);
 }
 

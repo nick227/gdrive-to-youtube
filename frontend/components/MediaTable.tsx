@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { MediaItem, UploadJob } from '../types/api';
+import { MediaItem, UploadJob, RenderJob } from '../types/api';
 import { getMediaRowState, MediaRowKind } from '../utils/mediaRowState';
 import StatusBadge from './ui/StatusBadge';
 import MediaPreview from './MediaPreview';
@@ -11,6 +11,7 @@ import { formatBytes, compareString } from '../utils/mediaFormat';
 export interface MediaTableProps {
   media: MediaItem[];
   uploadJobs: UploadJob[];
+  renderJobs: RenderJob[];
   onPostToYouTube: (mediaItem: MediaItem) => void;
   onCreateVideo: (mediaItem: MediaItem) => void;
   onCancelJob?: (jobId: number) => void;
@@ -79,40 +80,97 @@ interface EnrichedMediaItem extends MediaItem {
     formattedDate: string;
     fullPath: string;
     stableKey: string;
+    usage: {
+      uploadCount: number;
+      latestUploadStatus: string | null;
+      renderAudioCount: number;
+      renderImageCount: number;
+      renderOutputCount: number;
+      latestRenderStatus: string | null;
+    };
   };
 }
 
-function enrichMediaItem(item: MediaItem, uploadJobs: UploadJob[]): EnrichedMediaItem {
+type UploadUsageEntry = { count: number; latestStatus: string | null; latestTime: number };
+type RenderUsageEntry = {
+  audioCount: number;
+  imageCount: number;
+  outputCount: number;
+  latestStatus: string | null;
+  latestTime: number;
+};
+
+function enrichMediaItem(
+  item: MediaItem,
+  uploadUsage: Map<number, UploadUsageEntry>,
+  renderUsage: Map<number, RenderUsageEntry>,
+  uploadJobs: UploadJob[]
+): EnrichedMediaItem {
   const state = getMediaRowState(item, uploadJobs);
   const mimeCategory = getMimeTypeCategory(item.mimeType);
   
   // Parse size - use parseInt for stringified integers from backend
-  const sizeNum = item.sizeBytes ? parseInt(item.sizeBytes, 10) || 0 : 0;
+  const parsedSize = Number(item.sizeBytes);
+  const sizeNum = Number.isFinite(parsedSize) ? parsedSize : 0;
   
   // Parse date once - prefer ISO 8601 format from backend
-  const createdAtTime = item.createdAt ? new Date(item.createdAt).getTime() : 0;
-  const formattedDate = item.createdAt && Number.isFinite(createdAtTime)
-    ? new Date(createdAtTime).toLocaleString()
-    : '—';
+  const createdAtTimeRaw = item.createdAt ? Date.parse(item.createdAt) : NaN;
+  const createdAtTime = Number.isFinite(createdAtTimeRaw) ? createdAtTimeRaw : 0;
+  const formattedDate = createdAtTime ? new Date(createdAtTime).toLocaleString() : '—';
   
   const fullPath = normalizePathJoin(item.folderPath, item.name);
   
   // Stable key with collision-resistant fallback
-  const stableKey = String(
-    item.id ?? `${item.folderPath ?? 'none'}/${item.name ?? 'unnamed'}::${createdAtTime}::${sizeNum}`
-  );
+  const stableKey =
+    item.driveFileId
+      ? `drive-${item.driveFileId}`
+      : item.id != null
+        ? String(item.id)
+        : `${item.folderPath ?? 'none'}/${item.name ?? 'unnamed'}::${createdAtTime}::${sizeNum}::${item.mimeType ?? 'unknown'}`;
+
+  const usage = deriveUsage(item.id, uploadUsage, renderUsage);
 
   return {
     ...item,
     _enriched: {
       state,
       mimeCategory,
-      sizeNum: Number.isFinite(sizeNum) ? sizeNum : 0,
-      createdAtTime: Number.isFinite(createdAtTime) ? createdAtTime : 0,
+      sizeNum,
+      createdAtTime,
       formattedDate,
       fullPath,
       stableKey,
+      usage,
     },
+  };
+}
+
+function deriveUsage(
+  mediaId: number | null | undefined,
+  uploadUsage: Map<number, UploadUsageEntry>,
+  renderUsage: Map<number, RenderUsageEntry>
+) {
+  if (mediaId == null) {
+    return {
+      uploadCount: 0,
+      latestUploadStatus: null,
+      renderAudioCount: 0,
+      renderImageCount: 0,
+      renderOutputCount: 0,
+      latestRenderStatus: null,
+    };
+  }
+
+  const upload = uploadUsage.get(mediaId);
+  const render = renderUsage.get(mediaId);
+
+  return {
+    uploadCount: upload?.count ?? 0,
+    latestUploadStatus: upload?.latestStatus ?? null,
+    renderAudioCount: render?.audioCount ?? 0,
+    renderImageCount: render?.imageCount ?? 0,
+    renderOutputCount: render?.outputCount ?? 0,
+    latestRenderStatus: render?.latestStatus ?? null,
   };
 }
 
@@ -136,14 +194,17 @@ function getSortValue(item: EnrichedMediaItem, key: SortKey): string | number {
         ? STATE_PRIORITY[kind as keyof typeof STATE_PRIORITY]
         : 999;
     }
-    default:
-      return '';
+    default: {
+      const _exhaustive: never = key;
+      throw new Error(`Unhandled sort key: ${_exhaustive as string}`);
+    }
   }
 }
 
 export default function MediaTable({
   media,
   uploadJobs,
+  renderJobs,
   onPostToYouTube,
   onCreateVideo,
   onCancelJob,
@@ -188,10 +249,75 @@ export default function MediaTable({
   };
 
   // Memoize enrichment separately to avoid recomputing on every filter/search change
+  const { uploadUsage, renderUsage } = useMemo(() => {
+    const uploadUsageMap = new Map<number, UploadUsageEntry>();
+    for (const job of uploadJobs) {
+      if (job.mediaItemId == null) continue;
+      const createdMs = Date.parse(job.createdAt);
+      if (!Number.isFinite(createdMs)) continue;
+      const entry = uploadUsageMap.get(job.mediaItemId) ?? {
+        count: 0,
+        latestStatus: null,
+        latestTime: -1,
+      };
+      entry.count += 1;
+      if (createdMs > entry.latestTime) {
+        entry.latestTime = createdMs;
+        entry.latestStatus = job.status;
+      }
+      uploadUsageMap.set(job.mediaItemId, entry);
+    }
+
+    const renderUsageMap = new Map<number, RenderUsageEntry>();
+    for (const job of renderJobs) {
+      const createdMs = Date.parse(job.createdAt);
+      if (!Number.isFinite(createdMs)) continue;
+      const roles: Array<{ key: 'audio' | 'image' | 'output'; id: number | null | undefined }> = [
+        { key: 'audio', id: job.audioMediaItemId },
+        { key: 'image', id: job.imageMediaItemId },
+        { key: 'output', id: job.outputMediaItemId },
+      ];
+
+      const seenForJob = new Set<number>(); // track per media id for latest status
+      const seenPerRole = new Set<string>(); // track per media id + role for counts
+      for (const role of roles) {
+        if (role.id == null) continue;
+        const roleKey = `${role.id}-${role.key}`;
+        const entry =
+          renderUsageMap.get(role.id) ?? {
+            audioCount: 0,
+            imageCount: 0,
+            outputCount: 0,
+            latestStatus: null,
+            latestTime: -1,
+          };
+
+        if (!seenPerRole.has(roleKey)) {
+          if (role.key === 'audio') entry.audioCount += 1;
+          if (role.key === 'image') entry.imageCount += 1;
+          if (role.key === 'output') entry.outputCount += 1;
+          seenPerRole.add(roleKey);
+        }
+
+        if (!seenForJob.has(role.id)) {
+          if (createdMs > entry.latestTime) {
+            entry.latestTime = createdMs;
+            entry.latestStatus = job.status;
+          }
+          seenForJob.add(role.id);
+        }
+
+        renderUsageMap.set(role.id, entry);
+      }
+    }
+
+    return { uploadUsage: uploadUsageMap, renderUsage: renderUsageMap };
+  }, [uploadJobs, renderJobs]);
+
   const enrichedMedia = useMemo(() => {
     if (!media || media.length === 0) return [];
-    return media.map((item) => enrichMediaItem(item, uploadJobs));
-  }, [media, uploadJobs]);
+    return media.map((item) => enrichMediaItem(item, uploadUsage, renderUsage, uploadJobs));
+  }, [media, uploadUsage, renderUsage, uploadJobs]);
 
   const filteredAndSortedMedia = useMemo(() => {
     if (enrichedMedia.length === 0) return [];
@@ -204,7 +330,16 @@ export default function MediaTable({
       items = items.filter((item) => {
         const fullPath = item._enriched.fullPath.toLowerCase();
         const mimeType = (item.mimeType ?? '').toLowerCase();
-        return fullPath.includes(q) || mimeType.includes(q);
+        const statusText = (item.status ?? '').toLowerCase();
+        const stateKind = item._enriched.state.kind.toLowerCase();
+        const err = item._enriched.state.job?.errorMessage?.toLowerCase() ?? '';
+        return (
+          fullPath.includes(q) ||
+          mimeType.includes(q) ||
+          statusText.includes(q) ||
+          stateKind.includes(q) ||
+          err.includes(q)
+        );
       });
     }
 
@@ -224,24 +359,18 @@ export default function MediaTable({
       const aVal = getSortValue(a, sortKey);
       const bVal = getSortValue(b, sortKey);
 
-      let result =
+      const dir = sortDir === 'asc' ? 1 : -1;
+      const primary =
         typeof aVal === 'number' && typeof bVal === 'number'
           ? aVal - bVal
           : compareString(String(aVal), String(bVal));
 
-      // Apply sort direction
-      result = sortDir === 'asc' ? result : -result;
-
-      // Tie-breaker: use stable key for deterministic ordering
-      if (result === 0) {
-        const tieBreak = compareString(
-          a._enriched.stableKey,
-          b._enriched.stableKey
-        );
-        return sortDir === 'asc' ? tieBreak : -tieBreak;
+      if (primary !== 0) {
+        return dir * primary;
       }
 
-      return result;
+      const tieBreak = compareString(a._enriched.stableKey, b._enriched.stableKey);
+      return dir * tieBreak;
     });
 
     return items;
@@ -271,9 +400,11 @@ export default function MediaTable({
   return (
     <div className="media-list">
       {/* Controls: filters + sort */}
-      <div className="d-flex flex-column gap-3">
-        {/* Search and MIME type filters */}
-        <div className="d-flex align-items-center gap-3">
+        <div
+          className="flex align-items-center gap-3 mb-4"
+          role="toolbar"
+          aria-label="Media filters and sorting"
+        >
           <input
             type="text"
             placeholder="Search name or path..."
@@ -282,48 +413,48 @@ export default function MediaTable({
             className="mr-4"
           />
 
-          <div className="d-flex gap-2">
-            {(['image', 'video', 'audio'] as MimeTypeFilter[]).map((type) => (
-              <button
-                key={type}
-                type="button"
-                className={`btn btn-sm ${
-                  mimeFilters.allowed.has(type) ? 'btn-primary' : 'btn-outline-secondary'
-                }`}
-                onClick={() => toggleMimeType(type)}
-              >
-                {type}
-              </button>
-            ))}
+        {(['image', 'video', 'audio'] as MimeTypeFilter[]).map((type) => (
+          <button
+            key={type}
+            type="button"
+            aria-pressed={mimeFilters.allowed.has(type)}
+            className={`btn btn-sm ${
+              mimeFilters.allowed.has(type) ? 'btn-secondary' : 'btn-dark'
+            }`}
+            onClick={() => toggleMimeType(type)}
+          >
+            {type}
+          </button>
+        ))}
             <button
               type="button"
+              aria-pressed={mimeFilters.showOther}
               className={`btn btn-sm ${
-                mimeFilters.showOther ? 'btn-primary' : 'btn-outline-secondary'
+                mimeFilters.showOther ? 'btn-secondary' : 'btn-dark'
               }`}
               onClick={toggleOtherTypes}
             >
               other
             </button>
-          </div>
-        </div>
 
         {/* Sort buttons */}
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          {SORTABLE_COLUMNS.map((col) => (
-            <button
-              key={col.key}
-              type="button"
-              className={`btn btn-sm ${
-                sortKey === col.key ? 'btn-secondary' : 'btn-outline-secondary'
-              }`}
-              onClick={() => handleSort(col.key)}
-            >
-              {col.label}
-              {renderSortIndicator(col.key)}
-            </button>
-          ))}
+        {SORTABLE_COLUMNS.map((col) => (
+          <button
+            key={col.key}
+            type="button"
+            aria-sort={
+              sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined
+            }
+            className={`btn btn-sm ${
+              sortKey === col.key ? 'btn-secondary' : 'btn-outline-secondary'
+            }`}
+            onClick={() => handleSort(col.key)}
+          >
+            {col.label}
+            {renderSortIndicator(col.key)}
+          </button>
+        ))}
         </div>
-      </div>
 
       {/* List body */}
       {!hasFilteredResults ? (
@@ -331,7 +462,7 @@ export default function MediaTable({
       ) : (
         <div className="media-list-body d-flex flex-column gap-2">
           {filteredAndSortedMedia.map((item) => {
-            const { state, mimeCategory, sizeNum, formattedDate, fullPath, stableKey } =
+            const { state, mimeCategory, sizeNum, formattedDate, fullPath, stableKey, usage } =
               item._enriched;
 
             const jobId = state.job?.id;
@@ -359,14 +490,35 @@ export default function MediaTable({
                   <span>•</span>
                   <StatusBadge
                     status={state.kind}
-                    scheduledTime={state.scheduledTime?.toISOString()}
+                    scheduledTime={
+                      state.scheduledTime instanceof Date
+                        ? state.scheduledTime.toISOString()
+                        : undefined
+                    }
                   />
 
+                  {/* conditional usage based on file type */}
+                  {mimeCategory === 'video' && (
+                    <div className="text-muted text-xs">
+                      uploaded: {usage.uploadCount}
+                      {usage.latestUploadStatus ? ` (${usage.latestUploadStatus.toLowerCase()})` : ''}
+                    </div>
+                  )}
+                  {mimeCategory === 'audio' && (
+                    <div className="text-muted text-xs">
+                      used: {usage.renderAudioCount}
+                      {usage.latestRenderStatus ? ` (${usage.latestRenderStatus.toLowerCase()})` : ''}
+                    </div>
+                  )}
+                  {mimeCategory === 'image' && (
+                    <div className="text-muted text-xs">
+                      used: uses {usage.renderImageCount}
+                      {usage.latestRenderStatus ? ` (${usage.latestRenderStatus.toLowerCase()})` : ''}
+                    </div>
+                  )}
+
                   {state.kind === 'failed' && state.job?.errorMessage && (
-                    <>
-                      <span>•</span>
                       <span className="text-error text-xs">{state.job.errorMessage}</span>
-                    </>
                   )}
                 </div>
 

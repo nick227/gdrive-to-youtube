@@ -472,7 +472,7 @@ export default function MediaTable({
 
             return (
               <div key={stableKey} className={`media-row ${mimeCategory}`}>
-                <div className={`flex justify-between items-end media-row-type ${mimeCategory}`}>{mimeCategory}
+                <div className={`flex justify-between items-center media-row-type ${mimeCategory}`}>{mimeCategory}
                   {shouldShowActions && (
                     <RowActions
                       mediaItem={item}

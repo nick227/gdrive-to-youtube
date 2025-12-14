@@ -56,16 +56,16 @@ function getMimeTypeCategory(mimeType: string | null | undefined): MimeTypeFilte
 
 function normalizePathJoin(folderPath: string | null | undefined, name: string | null | undefined): string {
   const fileName = name ?? 'unnamed';
-  
+
   if (!folderPath || folderPath === '') {
     // No folder means just the filename (not rooted)
     return fileName;
   }
-  
+
   if (folderPath === '/') {
     return `/${fileName}`;
   }
-  
+
   // Remove trailing slash from path and join
   const cleanPath = folderPath.replace(/\/$/, '');
   return `${cleanPath}/${fileName}`;
@@ -108,18 +108,19 @@ function enrichMediaItem(
 ): EnrichedMediaItem {
   const state = getMediaRowState(item, uploadJobs);
   const mimeCategory = getMimeTypeCategory(item.mimeType);
-  
+
   // Parse size - use parseInt for stringified integers from backend
   const parsedSize = Number(item.sizeBytes);
   const sizeNum = Number.isFinite(parsedSize) ? parsedSize : 0;
-  
+
   // Parse date once - prefer ISO 8601 format from backend
   const createdAtTimeRaw = item.createdAt ? Date.parse(item.createdAt) : NaN;
   const createdAtTime = Number.isFinite(createdAtTimeRaw) ? createdAtTimeRaw : 0;
-  const formattedDate = createdAtTime ? new Date(createdAtTime).toLocaleString() : '—';
-  
+  const formattedDate = createdAtTime ? new Date(createdAtTime).toLocaleDateString('en-US') : '—';
+
+
   const fullPath = normalizePathJoin(item.folderPath, item.name);
-  
+
   // Stable key with collision-resistant fallback
   const stableKey =
     item.driveFileId
@@ -400,42 +401,40 @@ export default function MediaTable({
   return (
     <div className="media-list">
       {/* Controls: filters + sort */}
-        <div
-          className="flex align-items-center gap-3 mb-4"
-          role="toolbar"
-          aria-label="Media filters and sorting"
-        >
-          <input
-            type="text"
-            placeholder="Search name or path..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="mr-4"
-          />
+      <div
+        className="flex align-items-center gap-3 mb-4"
+        role="toolbar"
+        aria-label="Media filters and sorting"
+      >
+        <input
+          type="text"
+          placeholder="Search name or path..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="mr-4"
+        />
 
         {(['image', 'video', 'audio'] as MimeTypeFilter[]).map((type) => (
           <button
             key={type}
             type="button"
             aria-pressed={mimeFilters.allowed.has(type)}
-            className={`btn btn-sm ${
-              mimeFilters.allowed.has(type) ? 'btn-dark' : 'btn-secondary'
-            }`}
+            className={`btn btn-sm ${mimeFilters.allowed.has(type) ? 'btn-dark' : 'btn-secondary'
+              }`}
             onClick={() => toggleMimeType(type)}
           >
             {type}
           </button>
         ))}
-            <button
-              type="button"
-              aria-pressed={mimeFilters.showOther}
-              className={`btn btn-sm ${
-                mimeFilters.showOther ? 'btn-dark' : 'btn-secondary'
-              }`}
-              onClick={toggleOtherTypes}
-            >
-              other
-            </button>
+        <button
+          type="button"
+          aria-pressed={mimeFilters.showOther}
+          className={`btn btn-sm ${mimeFilters.showOther ? 'btn-dark' : 'btn-secondary'
+            }`}
+          onClick={toggleOtherTypes}
+        >
+          other
+        </button>
 
         {/* Sort buttons */}
         {SORTABLE_COLUMNS.map((col) => (
@@ -445,16 +444,15 @@ export default function MediaTable({
             aria-sort={
               sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined
             }
-            className={`btn btn-sm ${
-              sortKey === col.key ? 'btn-secondary' : 'btn-outline-secondary'
-            }`}
+            className={`btn btn-sm ${sortKey === col.key ? 'btn-secondary' : 'btn-outline-secondary'
+              }`}
             onClick={() => handleSort(col.key)}
           >
             {col.label}
             {renderSortIndicator(col.key)}
           </button>
         ))}
-        </div>
+      </div>
 
       {/* List body */}
       {!hasFilteredResults ? (
@@ -484,10 +482,8 @@ export default function MediaTable({
                 </div>
 
                 <div className="media-row-meta text-muted text-sm d-flex flex-wrap gap-2">
-                  <span>{formatBytes(sizeNum)}</span>
-                  <span>•</span>
+                  <span>{formatBytes(sizeNum)}, </span>
                   <span>{formattedDate}</span>
-                  <span>•</span>
                   <StatusBadge
                     status={state.kind}
                     scheduledTime={
@@ -497,29 +493,31 @@ export default function MediaTable({
                     }
                   />
 
-                  {/* conditional usage based on file type */}
-                  {mimeCategory === 'video' && (
-                    <div className="text-muted text-xs">
-                      uploaded: {usage.uploadCount}
-                      {usage.latestUploadStatus ? ` (${usage.latestUploadStatus.toLowerCase()})` : ''}
-                    </div>
-                  )}
-                  {mimeCategory === 'audio' && (
-                    <div className="text-muted text-xs">
-                      used: {usage.renderAudioCount}
-                      {usage.latestRenderStatus ? ` (${usage.latestRenderStatus.toLowerCase()})` : ''}
-                    </div>
-                  )}
-                  {mimeCategory === 'image' && (
-                    <div className="text-muted text-xs">
-                      used: uses {usage.renderImageCount}
-                      {usage.latestRenderStatus ? ` (${usage.latestRenderStatus.toLowerCase()})` : ''}
-                    </div>
-                  )}
+                  <div className="w-full">
+                    {/* conditional usage based on file type */}
+                    {mimeCategory === 'video' && (
+                      <span className="text-muted text-xs">
+                        uploaded: {usage.uploadCount}
+                        {usage.latestUploadStatus ? ` (${usage.latestUploadStatus.toLowerCase()})` : ''}
+                      </span>
+                    )}
+                    {mimeCategory === 'audio' && (
+                      <span className="text-muted text-xs">
+                        used: {usage.renderAudioCount}
+                        {usage.latestRenderStatus ? ` (${usage.latestRenderStatus.toLowerCase()})` : ''}
+                      </span>
+                    )}
+                    {mimeCategory === 'image' && (
+                      <span className="text-muted text-xs">
+                        used: {usage.renderImageCount}
+                        {usage.latestRenderStatus ? ` (${usage.latestRenderStatus.toLowerCase()})` : ''}
+                      </span>
+                    )}
 
-                  {state.kind === 'failed' && state.job?.errorMessage && (
+                    {state.kind === 'failed' && state.job && (
                       <span className="text-error text-xs">{state.job.errorMessage}</span>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 <div className="media-row-actions">

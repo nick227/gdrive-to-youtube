@@ -24,12 +24,12 @@ type IdleActionConfig = {
  */
 const IDLE_ACTIONS_BY_CATEGORY: Record<MediaCategory, IdleActionConfig | null> = {
   video: {
-    label: 'Post to YouTube',
+    label: 'Post',
     handlerKey: 'onPostToYouTube',
     icon: <i className="fa-brands fa-youtube" aria-hidden="true" />,
   },
   audio: {
-    label: 'Create Video',
+    label: 'Render',
     handlerKey: 'onCreateVideo',
     icon: <i className="fa-solid fa-video" aria-hidden="true" />,
   },
@@ -39,15 +39,12 @@ const IDLE_ACTIONS_BY_CATEGORY: Record<MediaCategory, IdleActionConfig | null> =
 
 export default function RowActions({
   mediaItem,
-  state,
   onPostToYouTube,
   onCreateVideo,
-  onCancelJob,
 }: RowActionsProps) {
   const category = getMimeCategory(mediaItem.mimeType);
 
   // Idle state: show action buttons based on media type
-  if (state.kind === 'idle') {
     const config = IDLE_ACTIONS_BY_CATEGORY[category];
     if (!config) {
       return <span className="text-light text-sm"></span>;
@@ -62,12 +59,5 @@ export default function RowActions({
         {config.label}
       </button>
     );
-  }
 
-  // Pending/Scheduled/Running: show cancel button
-  return onCancelJob ? (
-    <button className="btn btn-secondary btn-sm btn-item" onClick={onCancelJob}>
-      Cancel
-    </button>
-  ) : null;
 }

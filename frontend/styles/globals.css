@@ -114,16 +114,25 @@ button {
   white-space: nowrap;
 }
 
-.media-preview-title,
-.media-row-meta {
-  white-space: nowrap;      /* keep text on one line */
-  overflow: hidden;         /* hide overflow */
-  text-overflow: ellipsis;  /* add "…" */
-  width: calc(var(--max-width-item) - 10px);
+.media-preview-title {
+  white-space: nowrap; 
+  overflow: hidden;       
+  text-overflow: ellipsis;
+  height: 30px;
+  width: calc(var(--max-width-item));
   padding-left: 5px;
 }
 
-.media-row-meta span,
+.media-row-meta {
+  height: 44px;
+  width: 95%;
+  padding-left: 5px;
+}
+
+.media-row-actions {
+  border-top: 1px solid var(--color-overlay);
+}
+
 .media-row-status-line span  {
   border-radius: var(--space-sm);
   background-color: var(--color-bg-muted);

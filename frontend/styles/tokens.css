@@ -72,8 +72,8 @@
   --z-modal: 1000;
 
   /* Layout */
-  --max-width-item: 188px;
-  --max-width-page: 48vw;
+  --max-width-item: 296px;
+  --max-width-page: 1260px;
   --max-width-modal: 480px;
 }
 

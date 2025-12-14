@@ -129,7 +129,13 @@ export default function PendingJobsList({
     }, [uploadJobs, renderJobs]);
 
     return (
-        <div className="section" style={{ marginBottom: '1.5rem' }}>
+        <div className="section mt-4" 
+                            style={{
+                                border: '1px solid #eee',
+                                borderRadius: 8,
+                                padding: '10px 12px',
+                                background: '#fafafa',
+                            }}>
             <div className="flex justify-between items-end mb-2 w-full">
                 <div>
                     <h3 className="section-title" style={{ margin: 0 }}>
@@ -157,17 +163,11 @@ export default function PendingJobsList({
                     No jobs yet. Create an upload or render to see it here.
                 </div>
             ) : (
-                <div className="d-flex flex-column gap-2">
+                <div className="d-flex flex-column gap-2 item-list">
                     {rows.map((row) => (
                         <div
                             key={row.id}
                             className="d-flex flex-column gap-1"
-                            style={{
-                                border: '1px solid #eee',
-                                borderRadius: 8,
-                                padding: '10px 12px',
-                                background: '#fafafa',
-                            }}
                         >
                             <div className="d-flex justify-content-between align-items-center">
                                 <div className="d-flex align-items-center gap-2">

@@ -123,8 +123,8 @@ button {
   width: 100%;  
 }
 
-.history-panel {
-  max-height: 16vh;
+.history-panel .item-list {
+  max-height: 25vh;
   overflow-y: auto;
 }
 

@@ -109,13 +109,10 @@ export default function Page() {
               </button>
             </>
           ) : (
-            <button className="btn btn-primary" onClick={login}>
+            <button className="btn btn-login" onClick={login}>
               Sign in with Google
             </button>
           )}
-          <button className="btn btn-secondary" onClick={reload}>
-            Reload
-          </button>
         </div>
       </div>
 

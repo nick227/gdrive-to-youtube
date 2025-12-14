@@ -38,11 +38,21 @@ input[type="text"]:focus {
 .btn-primary {
   background: var(--color-bg);
   color: var(--color-text);
-  border: none;
 }
 
 .btn-primary:hover:not(:disabled) {
+  background: var(--color-dark);
+  color: white;
+}
+
+.btn-login {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn-login:hover {
   background: var(--color-primary-hover);
+  color: white;
 }
 
 .btn-secondary,

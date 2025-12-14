@@ -160,7 +160,7 @@ export default function PendingJobsList({
 
             {rows.length === 0 ? (
                 <div className="alert alert-info" style={{ marginBottom: 0 }}>
-                    No jobs yet. Create an upload or render to see it here.
+                    none
                 </div>
             ) : (
                 <div className="d-flex flex-column gap-2 item-list">

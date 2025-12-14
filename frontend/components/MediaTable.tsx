@@ -395,7 +395,7 @@ export default function MediaTable({
   const hasFilteredResults = filteredAndSortedMedia.length > 0;
 
   if (!hasMedia) {
-    return <p className="text-muted">No media yet. Run the Drive sync worker.</p>;
+    return <p className="text-muted">No media found</p>;
   }
 
   return (

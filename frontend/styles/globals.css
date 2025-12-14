@@ -143,5 +143,8 @@ button {
   width: 100%;  
 }
 
-
+.history-panel {
+  max-height: 40vh;
+  overflow-y: auto;
+}
 

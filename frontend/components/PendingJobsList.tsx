@@ -133,11 +133,8 @@ export default function PendingJobsList({
             <div className="flex justify-between items-end mb-2 w-full">
                 <div>
                     <h3 className="section-title" style={{ margin: 0 }}>
-                        Jobs (pending & recent)
+                        History
                     </h3>
-                    <p className="text-muted text-sm" style={{ margin: 0 }}>
-                        Uploads and renders in chronological order. New submissions appear instantly.
-                    </p>
                 </div>
 
                 <button

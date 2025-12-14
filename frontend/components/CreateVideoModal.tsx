@@ -111,7 +111,7 @@ export default function CreateVideoModal({
 
           {/* Audio preview */}
           <div className="form-field">
-            <div className="form-readonly">
+            <div className="form-readonly truncate">
               {audioItem.driveFileId && (
                 <audio
                   controls

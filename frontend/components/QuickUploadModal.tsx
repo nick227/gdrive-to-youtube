@@ -42,7 +42,6 @@ export default function QuickUploadModal({
     () => media.filter((m) => (m.mimeType ?? '').startsWith('image/')),
     [media]
   );
-  const [selectedImageId, setSelectedImageId] = useState<number | null>(null);
 
   // Reset form when modal opens with new media item
   useEffect(() => {
@@ -50,7 +49,7 @@ export default function QuickUploadModal({
       setFormData({
         mediaItemId: mediaItem.id,
         youtubeChannelId: channels[0]?.id || 0,
-        thumbnailMediaItemId: imageItems[0]?.id ?? null,
+        thumbnailMediaItemId: undefined,
         title: mediaItem.name.replace(/\.[^/.]+$/, ''),
         description: '',
         tags: '',
@@ -59,7 +58,6 @@ export default function QuickUploadModal({
       });
       setScheduleEnabled(false);
       setError(null);
-      setSelectedImageId(imageItems[0]?.id ?? null);
     }
   }, [isOpen, mediaItem, channels, imageItems]);
 
@@ -96,23 +94,16 @@ export default function QuickUploadModal({
     }
   };
   
-  // Keep form thumbnail in sync with selection list
-  useEffect(() => {
-    if (!isOpen) return;
-    if (imageItems.length === 0) {
-      setSelectedImageId(null);
-      setFormData((prev) => ({ ...prev, thumbnailMediaItemId: undefined }));
-      return;
-    }
-    // If current selection is missing, default to first
-    const exists = selectedImageId && imageItems.some((img) => img.id === selectedImageId);
-    const nextId = exists ? selectedImageId : imageItems[0].id;
-    setSelectedImageId(nextId);
-    setFormData((prev) => ({ ...prev, thumbnailMediaItemId: nextId ?? undefined }));
-  }, [isOpen, imageItems, selectedImageId]);
+  const videoSrc = mediaItem?.driveFileId
+    ? `${API_URL}/media-preview/${mediaItem.driveFileId}/video`
+    : null;
 
-  const selectedImage = selectedImageId
-    ? imageItems.find((img) => img.id === selectedImageId) ?? null
+  const selectedImage = formData.thumbnailMediaItemId
+    ? imageItems.find((img) => img.id === formData.thumbnailMediaItemId) ?? null
+    : null;
+
+  const selectedImageSrc = selectedImage?.driveFileId
+    ? `${API_URL}/media-preview/${selectedImage.driveFileId}/image`
     : null;
 
   return (
@@ -121,7 +112,7 @@ export default function QuickUploadModal({
         <form onSubmit={handleSubmit}>
           <div className="form-field">
             <label className="form-label">File</label>
-            <div className="form-readonly">{mediaItem.name}</div>
+            <div className="form-readonly truncate">{mediaItem.name}</div>
           </div>
 
           <div className="form-field">
@@ -143,40 +134,64 @@ export default function QuickUploadModal({
 
           <div className="form-field">
             <label>Thumbnail</label>
+
             {imageItems.length === 0 ? (
-              <div className="alert alert-warning" style={{ marginBottom: 0 }}>
+              <div className="alert alert-warning" style={{ marginBottom: 8 }}>
                 No images available. Upload images to Drive first.
               </div>
             ) : (
-              <>
-                <select
-                  className="form-select"
-                  value={selectedImageId ?? ''}
-                  onChange={(e) =>
-                    setSelectedImageId(
-                      e.target.value ? parseInt(e.target.value, 10) : null
-                    )
-                  }
-                >
-                  <option value="">No thumbnail</option>
-                  {imageItems.map((img) => (
-                    <option key={img.id} value={img.id}>
-                      {img.name}
-                    </option>
-                  ))}
-                </select>
-
-                {selectedImage && selectedImage.driveFileId && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={`${API_URL}/media-preview/${selectedImage.driveFileId}/image`}
-                    alt={selectedImage.name}
-                    style={{ maxWidth: '100%', maxHeight: 160, marginTop: 8, borderRadius: 8 }}
-                  />
-                )}
-              </>
+              <select
+                className="form-select"
+                value={formData.thumbnailMediaItemId ?? ''}
+                onChange={(e) => {
+                  const next = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                  setFormData((prev) => ({ ...prev, thumbnailMediaItemId: next }));
+                }}
+              >
+                <option value="">No thumbnail (use video first frame)</option>
+                {imageItems.map((img) => (
+                  <option key={img.id} value={img.id}>
+                    {img.name}
+                  </option>
+                ))}
+              </select>
             )}
 
+            {/* Preview area: always show video if we have one */}
+            {videoSrc && (
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  marginTop: 8,
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                }}
+              >
+                <video
+                  src={videoSrc}
+                  controls
+                  preload="metadata"
+                  style={{ width: '100%', display: 'block', maxHeight: 220 }}
+                />
+
+                {/* Overlay thumbnail image (intentionally blocks controls) */}
+                {selectedImageSrc && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={selectedImageSrc}
+                    alt={selectedImage?.name ?? 'Thumbnail'}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                )}
+              </div>
+            )}
           </div>
 
           <div className="form-field">

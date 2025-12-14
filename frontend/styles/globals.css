@@ -67,30 +67,14 @@ a:hover {
   align-items: center;
   position: relative;
   border-top: 4px solid var(--color-bg-muted);
-  border-radius: 8px;
 }
 
 .media-row-type{
-  color: white;
-  padding: 5px 0;
+  color: black;
+  padding: 5px;
   text-transform: uppercase;
-  text-align: center;
-  width: 100%;
 }
 
-.media-row-preview img,
-.media-row-type.image {
-  background-color: black;
-}
-.media-row-preview audio,
-.media-row-type.audio {
-  background-color: blueviolet;
-}
-.media-row-preview video,
-.media-row-type.video {
-  background-color: paleturquoise;
-  color: black;
-}
 .media-row.image {
   border-top-color: black;
 }
@@ -124,13 +108,9 @@ button {
 }
 
 .media-row-meta {
-  height: 44px;
+  height: 34px;
   width: 95%;
   padding-left: 5px;
-}
-
-.media-row-actions {
-  border-top: 1px solid var(--color-overlay);
 }
 
 .media-row-status-line span  {
@@ -144,7 +124,7 @@ button {
 }
 
 .history-panel {
-  max-height: 40vh;
+  max-height: 16vh;
   overflow-y: auto;
 }
 

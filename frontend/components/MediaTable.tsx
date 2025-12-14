@@ -472,7 +472,17 @@ export default function MediaTable({
 
             return (
               <div key={stableKey} className={`media-row ${mimeCategory}`}>
-                <div className={`media-row-type ${mimeCategory}`}>{mimeCategory}</div>
+                <div className={`flex justify-between items-end media-row-type ${mimeCategory}`}>{mimeCategory}
+                  {shouldShowActions && (
+                    <RowActions
+                      mediaItem={item}
+                      state={state}
+                      onPostToYouTube={() => onPostToYouTube(item)}
+                      onCreateVideo={() => onCreateVideo(item)}
+                      onCancelJob={handleCancel}
+                    />
+                  )}
+                </div>
                 <div className="media-row-preview">
                   <MediaPreview item={item} />
                 </div>
@@ -491,7 +501,6 @@ export default function MediaTable({
                     }
                   />
 
-                  <div className="w-full">
                     {/* conditional usage based on file type */}
                     {mimeCategory === 'video' && (
                       <span className="text-muted text-xs truncate">
@@ -515,19 +524,6 @@ export default function MediaTable({
                     {state.kind === 'failed' && state.job && (
                       <span className="text-error text-xs truncate">{state.job.errorMessage}</span>
                     )}
-                  </div>
-                </div>
-
-                <div className="media-row-actions">
-                  {shouldShowActions && (
-                    <RowActions
-                      mediaItem={item}
-                      state={state}
-                      onPostToYouTube={() => onPostToYouTube(item)}
-                      onCreateVideo={() => onCreateVideo(item)}
-                      onCancelJob={handleCancel}
-                    />
-                  )}
                 </div>
               </div>
             );

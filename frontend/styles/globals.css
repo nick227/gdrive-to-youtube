@@ -24,6 +24,11 @@ h1{
   display: block;
 }
 
+h6{
+  background-color: var(--color-bg-muted);
+  padding: var(--space-sm);
+}
+
 a {
   color: var(--color-primary);
   text-decoration: none;
@@ -38,19 +43,23 @@ a:hover {
 }
 
 .media-list-body {
-  max-width: var(--max-width-page);
+  width: var(--max-width-page);
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 36px;
+  gap: 6px;
 }
 
 .media-row-preview {
-  width: 100%;
-  height: 420px;
+  height: 220px;
   display: flex;
   justify-content: center;
   align-items: center;
   flex-direction: column;
+}
+
+.media-row-preview img {
+  height: 120px;
+
 }
 
 .media-row {
@@ -72,7 +81,7 @@ a:hover {
 
 .media-row-type{
   color: black;
-  padding: 5px;
+  padding: 5px 15px;
   text-transform: uppercase;
 }
 
@@ -86,6 +95,18 @@ a:hover {
   border-top-color: paleturquoise;
 }
 
+.media-row-type.image {
+  background-color: black;
+  color: white;
+}
+.media-row-type.audio {
+  background-color: blueviolet;
+  color: white;
+}
+.media-row-type.video {
+  background-color: paleturquoise;
+}
+
 .media-row-actions {
   width: 100%;
   display: flex;
@@ -93,10 +114,6 @@ a:hover {
   justify-content: center;
   align-items: center;
   padding: 5px 0;
-}
-
-button {
-  white-space: nowrap;
 }
 
 .media-preview-title,

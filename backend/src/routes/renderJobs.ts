@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import prisma from '../prismaClient';
 import { getCurrentUser } from '../auth/middleware';
+import { normalizeIdList, safeParseRenderSpec, RenderSpec } from '../rendering/renderSpec';
 
 const router = Router();
 
@@ -12,46 +13,80 @@ router.post('/', async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { audioMediaItemId, imageMediaItemId, waveformConfig } = req.body;
+    // renderSpec is the source of truth. audioMediaItemId / imageMediaItemId remain as legacy inputs for back-compat.
+    const { audioMediaItemId, imageMediaItemId, renderSpec } = req.body;
 
-    if (!audioMediaItemId) {
-      return res.status(400).json({ error: 'audioMediaItemId is required' });
+    const { spec, error: renderSpecError } = safeParseRenderSpec(renderSpec);
+    if (renderSpec && renderSpecError) {
+      return res.status(400).json({ error: renderSpecError });
     }
 
-    // Validate audio media exists and is audio/*
-    const audioMedia = await prisma.mediaItem.findUnique({
-      where: { id: audioMediaItemId },
+    const audioIds = normalizeIdList(
+      spec?.audios ?? (audioMediaItemId ? [audioMediaItemId] : [])
+    );
+
+    if (audioIds.length === 0) {
+      return res.status(400).json({ error: 'At least one audioMediaItemId is required' });
+    }
+
+    const imageIdsFromSpec =
+      spec?.mode === 'slideshow' ? normalizeIdList(spec.images) : [];
+    const imageIdsLegacy = normalizeIdList(imageMediaItemId ? [imageMediaItemId] : []);
+
+    const effectiveMode: RenderSpec['mode'] = spec?.mode ?? 'slideshow';
+    const imageIds =
+      effectiveMode === 'slideshow' ? imageIdsFromSpec.length ? imageIdsFromSpec : imageIdsLegacy : [];
+
+    if (effectiveMode === 'slideshow' && imageIds.length === 0) {
+      return res.status(400).json({ error: 'Slideshow renderSpec requires at least one image id' });
+    }
+
+    const idsToFetch = [...new Set([...audioIds, ...imageIds])];
+    const mediaItems = await prisma.mediaItem.findMany({
+      where: { id: { in: idsToFetch } },
     });
+    const mediaMap = new Map(mediaItems.map((item) => [item.id, item]));
 
-    if (!audioMedia) {
-      return res.status(404).json({ error: 'Audio media item not found' });
-    }
-
-    if (!audioMedia.mimeType.startsWith('audio/')) {
-      return res.status(400).json({ error: 'audioMediaItemId must reference an audio file' });
-    }
-
-    // Validate image media if provided
-    if (imageMediaItemId) {
-      const imageMedia = await prisma.mediaItem.findUnique({
-        where: { id: imageMediaItemId },
-      });
-
-      if (!imageMedia) {
-        return res.status(404).json({ error: 'Image media item not found' });
+    for (const id of audioIds) {
+      const item = mediaMap.get(id);
+      if (!item) {
+        return res.status(404).json({ error: `Audio media item ${id} not found` });
       }
-
-      if (!imageMedia.mimeType.startsWith('image/')) {
-        return res.status(400).json({ error: 'imageMediaItemId must reference an image file' });
+      if (!item.mimeType.startsWith('audio/')) {
+        return res.status(400).json({ error: `Media item ${id} must be audio/*` });
       }
     }
+
+    for (const id of imageIds) {
+      const item = mediaMap.get(id);
+      if (!item) {
+        return res.status(404).json({ error: `Image media item ${id} not found` });
+      }
+      if (!item.mimeType.startsWith('image/')) {
+        return res.status(400).json({ error: `Media item ${id} must be image/*` });
+      }
+    }
+
+    const primaryAudioId = audioIds[0];
+    const primaryImageId = imageIds.length > 0 ? imageIds[0] : null;
+
+    const specToStore: RenderSpec =
+      spec ??
+      {
+        mode: 'slideshow',
+        images: imageIds,
+        audios: audioIds,
+        intervalSeconds: 5,
+        autoTime: true,
+        repeatImages: false,
+      };
 
     const renderJob = await prisma.renderJob.create({
       data: {
-        audioMediaItemId,
-        imageMediaItemId,
+        audioMediaItemId: primaryAudioId,
+        imageMediaItemId: primaryImageId,
+        renderSpec: JSON.stringify(specToStore),
         requestedByUserId: user.id,
-        waveformConfig: waveformConfig ? JSON.stringify(waveformConfig) : null,
         status: 'PENDING',
       },
       include: {

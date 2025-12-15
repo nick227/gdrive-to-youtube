@@ -1,10 +1,15 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useMemo } from 'react';
 import Modal from './ui/Modal';
-import { MediaItem } from '../types/api';
+import { MediaItem, RenderSpec } from '../types/api';
 import { buildRenderJobPayload } from '../utils/payloadBuilders';
 import { API_URL } from '../config/api';
+import CreateVideoModeToggle from './CreateVideoModeToggle';
+import CreateVideoImageSequence from './CreateVideoImageSequence';
+import CreateVideoAudioSequence from './CreateVideoAudioSequence';
+import CreateVideoSlideshowControls from './CreateVideoSlideshowControls';
+import CreateVideoWaveformControls from './CreateVideoWaveformControls';
 
 interface CreateVideoModalProps {
   isOpen: boolean;
@@ -13,6 +18,32 @@ interface CreateVideoModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
+
+type RenderMode = RenderSpec['mode'];
+
+type SlideshowConfig = {
+  intervalSeconds: number;
+  autoTime: boolean;
+  repeatImages: boolean;
+};
+
+type WaveformConfig = {
+  backgroundColor: string;
+  waveColor: string;
+  waveStyle: 'line' | 'bars' | 'circle';
+};
+
+const defaultSlideshow: SlideshowConfig = {
+  intervalSeconds: 5,
+  autoTime: true,
+  repeatImages: false,
+};
+
+const defaultWaveform: WaveformConfig = {
+  backgroundColor: '#000000',
+  waveColor: '#00ffcc',
+  waveStyle: 'bars',
+};
 
 export default function CreateVideoModal({
   isOpen,
@@ -23,29 +54,113 @@ export default function CreateVideoModal({
 }: CreateVideoModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedImageId, setSelectedImageId] = useState<number>(0);
+  const [mode, setMode] = useState<RenderMode>('slideshow');
+  const [imageSequence, setImageSequence] = useState<number[]>([]);
+  const [audioSequence, setAudioSequence] = useState<number[]>([]);
+  const [previewImageId, setPreviewImageId] = useState<number | null>(null);
+  const [outputFileName, setOutputFileName] = useState<string>('');
+  const [slideshowConfig, setSlideshowConfig] = useState<SlideshowConfig>(defaultSlideshow);
+  const [waveformConfig, setWaveformConfig] = useState<WaveformConfig>(defaultWaveform);
+  const [availableAudios, setAvailableAudios] = useState<MediaItem[]>([]);
+
+  const dedupById = (items: MediaItem[]) => {
+    const seen = new Set<number>();
+    return items.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  };
 
   // Reset form when modal opens
   useEffect(() => {
-    if (isOpen && imageItems.length > 0) {
-      setSelectedImageId(imageItems[0].id);
-      setError(null);
-    }
-  }, [isOpen, imageItems]);
+    if (!isOpen) return;
+    setError(null);
+    setLoading(false);
+    setMode('slideshow');
+    setSlideshowConfig(defaultSlideshow);
+    setWaveformConfig(defaultWaveform);
+    setOutputFileName(audioItem?.name || '');
 
-  const selectedImage = imageItems.find((img) => img.id === selectedImageId);
+    const initialImageId = imageItems[0]?.id ?? null;
+    setImageSequence(initialImageId ? [initialImageId] : []);
+    setPreviewImageId(initialImageId);
+
+    const initialAudioId = audioItem?.id ?? null;
+    setAudioSequence(initialAudioId ? [initialAudioId] : []);
+  }, [isOpen, audioItem, imageItems]);
+
+  // Fetch available audios when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+
+    const fetchAudios = async () => {
+      try {
+        const res = await fetch(`${API_URL}/media`, { credentials: 'include' });
+        if (!res.ok) return;
+        const data: MediaItem[] = await res.json();
+        const audioMedia = data.filter((item) => item.mimeType.startsWith('audio/'));
+        const merged = dedupById([...(audioItem ? [audioItem] : []), ...audioMedia]);
+        if (!cancelled) {
+          setAvailableAudios(merged);
+          if (merged.length > 0 && audioSequence.length === 0) {
+            setAudioSequence([merged[0].id]);
+          }
+        }
+      } catch {
+        // swallow fetch errors in UI; keep existing audio choices
+      }
+    };
+
+    void fetchAudios();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, audioItem, audioSequence.length]);
+
+  const previewImage = useMemo(
+    () => imageItems.find((img) => img.id === previewImageId) || null,
+    [imageItems, previewImageId]
+  );
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!audioItem || !selectedImageId) return;
+    if (audioSequence.length === 0) {
+      setError('Please add at least one audio track.');
+      return;
+    }
+    if (mode === 'slideshow' && imageSequence.length === 0) {
+      setError('Please add at least one image.');
+      return;
+    }
+
+    const renderSpec: RenderSpec =
+      mode === 'slideshow'
+        ? {
+          mode: 'slideshow',
+          images: imageSequence,
+          audios: audioSequence,
+          intervalSeconds: slideshowConfig.intervalSeconds,
+          autoTime: slideshowConfig.autoTime,
+          repeatImages: slideshowConfig.repeatImages,
+          outputFileName: outputFileName || undefined,
+        }
+        : {
+          mode: 'waveform',
+          audios: audioSequence,
+          backgroundColor: waveformConfig.backgroundColor,
+          waveColor: waveformConfig.waveColor,
+          waveStyle: waveformConfig.waveStyle,
+          outputFileName: outputFileName || undefined,
+        };
 
     setError(null);
     setLoading(true);
 
     try {
       const payload = buildRenderJobPayload({
-        audioMediaItemId: audioItem.id,
-        imageMediaItemId: selectedImageId,
+        renderSpec,
       });
 
       const res = await fetch(`${API_URL}/render-jobs`, {
@@ -72,77 +187,76 @@ export default function CreateVideoModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Create Video">
-      {audioItem && (
-        <form onSubmit={handleSubmit}>
-          {/* Image selection + preview */}
-          <div className="form-field">
-            <label className="form-label">Background Image *</label>
-            {imageItems.length === 0 ? (
-              <div className="alert alert-warning" style={{ marginBottom: 0 }}>
-                No images available. Upload images to Drive first.
-              </div>
-            ) : (
-              <>
-                <select
-                  className="form-select"
-                  required
-                  value={selectedImageId}
-                  onChange={(e) =>
-                    setSelectedImageId(parseInt(e.target.value, 10))
-                  }
-                >
-                  {imageItems.map((img) => (
-                    <option key={img.id} value={img.id}>
-                      {img.name}
-                    </option>
-                  ))}
-                </select>
+      <form onSubmit={handleSubmit}>
+        <h6 className="form-label">File Name</h6>
+        <div className="form-field">
+          <input
+            type="text"
+            className="form-input"
+            placeholder={audioItem?.name || 'rendered_video'}
+            value={outputFileName}
+            onChange={(e) => setOutputFileName(e.target.value)}
+          />
+        </div>
 
-                {selectedImage && selectedImage.driveFileId && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={`${API_URL}/media-preview/${selectedImage.driveFileId}/image`}
-                      alt={selectedImage.name}
-                    />
-                )}
-              </>
-            )}
+        <CreateVideoModeToggle mode={mode} onChange={setMode} />
+
+        {mode === 'slideshow' && (
+          <CreateVideoImageSequence
+            availableImages={imageItems}
+            imageIds={imageSequence}
+            onChange={setImageSequence}
+            previewImageId={previewImageId}
+            onPreviewChange={setPreviewImageId}
+            apiUrl={API_URL}
+          />
+        )}
+
+        {previewImage && (
+          <div className="form-field mt-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`${API_URL}/media-preview/${previewImage.driveFileId}/image`}
+              alt={previewImage.name}
+              style={{ maxHeight: 240, objectFit: 'contain' }}
+            />
           </div>
+        )}
 
-          {/* Audio preview */}
-          <div className="form-field">
-            <div className="form-readonly truncate">
-              {audioItem.driveFileId && (
-                <audio
-                  controls
-                  src={`${API_URL}/media-preview/${audioItem.driveFileId}/audio`}
-                  style={{ display: 'block', marginTop: 8 }}
-                />
-              )}
-              {audioItem.name}
-            </div>
-          </div>
+        <CreateVideoAudioSequence
+          availableAudios={availableAudios}
+          audioIds={audioSequence}
+          onChange={setAudioSequence}
+          apiUrl={API_URL}
+        />
 
-          {error && <div className="alert alert-error">{error}</div>}
+        {mode === 'slideshow' ? (
+          <CreateVideoSlideshowControls
+            value={slideshowConfig}
+            onChange={setSlideshowConfig}
+          />
+        ) : (
+          <CreateVideoWaveformControls
+            value={waveformConfig}
+            onChange={setWaveformConfig}
+          />
+        )}
 
-          <div className="modal-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading || imageItems.length === 0}
-            >
-              {loading ? 'Creating...' : 'Create Render Job'}
-            </button>
-          </div>
-        </form>
-      )}
+        {error && <div className="alert alert-error">{error}</div>}
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? 'Creating...' : 'Create Render Job'}
+          </button>
+        </div>
+      </form>
     </Modal>
   );
 }

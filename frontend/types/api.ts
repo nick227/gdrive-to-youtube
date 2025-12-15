@@ -1,7 +1,9 @@
 import type { MediaStatus, VideoStatus, JobStatus, PrivacyStatus } from './enums';
+import type { RenderSpec } from './render';
 
 // Re-export enums for convenience
 export type { MediaStatus, VideoStatus, JobStatus, PrivacyStatus };
+export type { RenderSpec } from './render';
 
 // ============================================================================
 // API Response Types (match Prisma models after JSON serialization)
@@ -120,7 +122,9 @@ export interface CreateUploadJobRequest {
 }
 
 export interface CreateRenderJobRequest {
-  audioMediaItemId: number;
-  imageMediaItemId?: number; // Optional per Prisma schema
+  // Deprecated fields kept optional for backward compatibility; prefer renderSpec.
+  audioMediaItemId?: number;
+  imageMediaItemId?: number;
   waveformConfig?: string;
+  renderSpec?: RenderSpec;
 }

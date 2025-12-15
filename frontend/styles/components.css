@@ -30,6 +30,13 @@ input[type="text"]:focus {
   height: 35px;
 }
 
+.btn-small {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
 .btn-dark {
   background-color: var(--color-dark);
   color: white;
@@ -215,9 +222,7 @@ input[type="text"]:focus {
   border-radius: var(--radius-md);
   padding: var(--space-lg);
   max-width: var(--max-width-modal);
-  width: 90%;
-  max-height: 90vh;
-  overflow: auto;
+  width: 99%;
   position: relative;
 }
 

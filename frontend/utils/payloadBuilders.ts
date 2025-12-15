@@ -1,4 +1,9 @@
-import type { CreateUploadJobRequest, CreateRenderJobRequest, PrivacyStatus } from '../types/api';
+import type {
+  CreateUploadJobRequest,
+  CreateRenderJobRequest,
+  PrivacyStatus,
+  RenderSpec,
+} from '../types/api';
 
 // ============================================================================
 // Form Data Types (UI state before transformation)
@@ -16,8 +21,7 @@ export interface UploadJobFormData {
 }
 
 export interface RenderJobFormData {
-  audioMediaItemId: number;
-  imageMediaItemId: number;
+  renderSpec: RenderSpec;
 }
 
 // ============================================================================
@@ -39,7 +43,6 @@ export function buildUploadJobPayload(formData: UploadJobFormData): CreateUpload
 
 export function buildRenderJobPayload(formData: RenderJobFormData): CreateRenderJobRequest {
   return {
-    audioMediaItemId: formData.audioMediaItemId,
-    imageMediaItemId: formData.imageMediaItemId,
+    renderSpec: formData.renderSpec,
   };
 }

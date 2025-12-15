@@ -507,7 +507,6 @@ export default function MediaTable({
                         : undefined
                     }
                   />
-
                   {/* conditional usage based on file type */}
                   {mimeCategory === 'video' && (
                     <span className="text-muted text-xs">

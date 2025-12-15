@@ -1,26 +1,26 @@
 // src/workers/processRenderJobs.ts
 import dotenv from 'dotenv';
 import prisma from '../prismaClient';
-import type { RenderJob, MediaItem } from '@prisma/client';
-
-import { google } from 'googleapis';
-import type { Credentials } from 'google-auth-library';
+import type { MediaItem } from '@prisma/client';
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
-import { promisify } from 'util';
-import { pipeline } from 'stream';
-import { spawn } from 'child_process';
-import { getServiceAccountAuth } from '../utils/serviceAccountAuth';
+import { parseRenderSpec, RenderSpec } from '../rendering/renderSpec';
+import { getDriveReadClient } from '../rendering/driveClients';
+import { downloadMediaBatch } from '../rendering/download';
+import {
+  buildSlideshowFrames,
+  concatAudios,
+  createSlideshowVideo,
+  getAudioDurationSeconds,
+  muxAudioAndVideo,
+} from '../rendering/slideshow';
+import { uploadMp4ToDrive } from '../rendering/upload';
+import {
+  RenderJobWithRelations,
+  resolveRenderMedia,
+} from '../rendering/mediaResolver';
 
 dotenv.config();
-
-const streamPipeline = promisify(pipeline);
-
-type RenderJobWithRelations = RenderJob & {
-  audioMediaItem: MediaItem;
-  imageMediaItem: MediaItem | null;
-};
 
 function formatError(err: unknown): string {
   if (err instanceof Error) {
@@ -29,195 +29,72 @@ function formatError(err: unknown): string {
   return typeof err === 'string' ? err : 'Unknown error';
 }
 
-// ---- DRIVE CLIENTS ----
+type RenderOutput = {
+  outputPath: string;
+  baseName: string;
+};
 
-// Service account client: READ (download) from Drive
-function getDriveReadClient() {
-  const auth = getServiceAccountAuth([
-    'https://www.googleapis.com/auth/drive.readonly',
-  ]);
-
-  const drive = google.drive({ version: 'v3', auth });
-  return drive;
-}
-
-// OAuth client (your Gmail): WRITE (upload) to Drive
-function getDriveWriteClient() {
-  const tokensJson = process.env.DRIVE_OAUTH_TOKENS;
-  if (!tokensJson) {
-    throw new Error('DRIVE_OAUTH_TOKENS is not set');
+async function renderFromSpec(
+  jobId: number,
+  spec: RenderSpec | null,
+  audioPaths: string[],
+  imagePaths: string[],
+  tempFiles: string[],
+  audioItems: MediaItem[],
+  imageItems: MediaItem[]
+): Promise<RenderOutput> {
+  if (audioPaths.length === 0) {
+    throw new Error('No audio tracks downloaded for render');
   }
 
-  const clientId = process.env.DRIVE_CLIENT_ID;
-  const clientSecret = process.env.DRIVE_CLIENT_SECRET;
-  const redirectUri =
-    process.env.DRIVE_REDIRECT_URI || 'http://localhost:4000/oauth2callback';
+  const tmpDir = path.dirname(audioPaths[0]);
+  const mergedAudioPath = await concatAudios(audioPaths, tmpDir, tempFiles);
+  const totalAudioSeconds = await getAudioDurationSeconds(mergedAudioPath);
 
-  if (!clientId || !clientSecret) {
-    throw new Error(
-      'DRIVE_CLIENT_ID / DRIVE_CLIENT_SECRET are not set (needed for OAuth uploads)'
-    );
-  }
+  const outputPath = path.join(tmpDir, `rendered-${jobId}.mp4`);
+  tempFiles.push(outputPath);
 
-  let tokens: Credentials;
-  try {
-    tokens = JSON.parse(tokensJson) as Credentials;
-  } catch {
-    throw new Error('DRIVE_OAUTH_TOKENS is not valid JSON');
-  }
+  // Slideshow: multi-asset support
+  if (!spec || spec.mode === 'slideshow') {
+    // TODO: Once renderSpec is always persisted, drop the !spec legacy fallback (target: next release).
+    if (imagePaths.length === 0) {
+      throw new Error('Slideshow render requires at least one image');
+    }
 
-  const oauth2Client = new google.auth.OAuth2(
-    clientId,
-    clientSecret,
-    redirectUri
-  );
-  oauth2Client.setCredentials(tokens);
-
-  console.log('[Drive OAuth] Using OAuth2 client for uploads');
-
-  const drive = google.drive({ version: 'v3', auth: oauth2Client });
-  return drive;
-}
-
-// ---- HELPERS ----
-
-function sanitizeFileName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9-_]+/g, '_').replace(/^_+|_+$/g, '');
-}
-
-function getTimestampString(date = new Date()): string {
-  // 2025-12-07T21:03:45.123Z -> 2025-12-07T21-03-45-123Z
-  return date.toISOString().replace(/:/g, '-').replace(/\./g, '-');
-}
-
-async function downloadDriveFileToTemp(
-  drive: ReturnType<typeof getDriveReadClient>,
-  fileId: string,
-  label: string
-): Promise<string> {
-  console.log(`[${label}] Downloading Drive file ${fileId}...`);
-
-  const res = await drive.files.get(
-    { fileId, alt: 'media' },
-    { responseType: 'stream' }
-  );
-
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'render-job-'));
-  const outPath = path.join(tmpDir, `${label}-${fileId}.bin`);
-
-  const readStream = res.data as unknown as NodeJS.ReadableStream;
-  const writeStream = fs.createWriteStream(outPath);
-
-  await streamPipeline(readStream, writeStream);
-
-  console.log(`[${label}] Downloaded to ${outPath}`);
-  return outPath;
-}
-
-async function runFfmpegToMp4(
-  imagePath: string,
-  audioPath: string,
-  outputPath: string
-): Promise<void> {
-  console.log(`[ffmpeg] Starting render:`);
-  console.log(`[ffmpeg]   image: ${imagePath}`);
-  console.log(`[ffmpeg]   audio: ${audioPath}`);
-  console.log(`[ffmpeg]   output: ${outputPath}`);
-
-  return new Promise((resolve, reject) => {
-    const args = [
-      '-y', // overwrite
-      '-loop',
-      '1',
-      '-i',
-      imagePath,
-      '-i',
-      audioPath,
-      '-c:v',
-      'libx264',
-      '-c:a',
-      'aac',
-      '-b:a',
-      '192k',
-      '-shortest',
-      '-pix_fmt',
-      'yuv420p',
-      outputPath,
-    ];
-
-    const ff = spawn('ffmpeg', args);
-
-    ff.stdout.on('data', (data) => {
-      console.log(`[ffmpeg stdout] ${data}`);
-    });
-
-    ff.stderr.on('data', (data) => {
-      console.log(`[ffmpeg stderr] ${data}`);
-    });
-
-    ff.on('error', (err) => {
-      console.error('[ffmpeg] Failed to start process:', err);
-      reject(err);
-    });
-
-    ff.on('close', (code) => {
-      if (code === 0) {
-        console.log('[ffmpeg] Render completed successfully');
-        resolve();
-      } else {
-        const err = new Error(`ffmpeg exited with code ${code}`);
-        console.error('[ffmpeg] Render failed:', err);
-        reject(err);
+    const perImageSeconds = (() => {
+      const provided = spec?.intervalSeconds ?? 0;
+      const auto = spec?.autoTime ?? false;
+      if (auto && totalAudioSeconds && imagePaths.length > 0) {
+        return totalAudioSeconds / imagePaths.length;
       }
-    });
-  });
-}
+      if (provided > 0) return provided;
+      if (totalAudioSeconds && imagePaths.length > 0) {
+        return totalAudioSeconds / imagePaths.length;
+      }
+      return 5; // fallback
+    })();
 
-async function uploadMp4ToDrive(
-  localPath: string,
-  baseName: string
-): Promise<{ id: string; name: string }> {
-  const outputFolderId = process.env.DRIVE_FOLDER_ID;
-  if (!outputFolderId) {
-    throw new Error('DRIVE_FOLDER_ID is not set');
+    const frames = buildSlideshowFrames(
+      imagePaths,
+      totalAudioSeconds,
+      perImageSeconds,
+      spec?.repeatImages ?? false
+    );
+
+    const slideshowVideo = await createSlideshowVideo(frames, tmpDir, tempFiles);
+    await muxAudioAndVideo(slideshowVideo, mergedAudioPath, outputPath);
+
+    const baseName = spec?.outputFileName || audioItems[0]?.name || 'rendered_video';
+    return { outputPath, baseName };
   }
 
-  // Use OAuth client here (user Drive quota)
-  const drive = getDriveWriteClient();
-
-  const timestamp = getTimestampString();
-  const sanitizedBase = sanitizeFileName(baseName) || 'rendered_video';
-  const finalName = `${sanitizedBase}_${timestamp}.mp4`;
-
-  console.log(
-    `[upload] Uploading ${localPath} to Drive folder ${outputFolderId} as ${finalName}...`
-  );
-
-  const fileMetadata = {
-    name: finalName,
-    parents: [outputFolderId],
-  };
-
-  const media = {
-    mimeType: 'video/mp4',
-    body: fs.createReadStream(localPath),
-  };
-
-  const res = await drive.files.create({
-    requestBody: fileMetadata,
-    media,
-    fields: 'id,name',
-  });
-
-  const id = res.data.id;
-  const name = res.data.name;
-
-  if (!id || !name) {
-    throw new Error('Drive file upload did not return id/name');
+  // Waveform placeholder: pipeline not implemented yet.
+  if (spec.mode === 'waveform') {
+    throw new Error('Waveform rendering is not implemented yet');
   }
 
-  console.log(`[upload] Uploaded: id=${id}, name=${name}`);
-  return { id, name };
+  // Exhaustive guard
+  throw new Error(`Unsupported render mode: ${(spec as { mode?: string }).mode ?? 'unknown'}`);
 }
 
 // ---- MAIN JOB LOGIC ----
@@ -231,8 +108,9 @@ export async function processRenderJob(
     return;
   }
 
+  const spec = parseRenderSpec(job.renderSpec);
   console.log(
-    `Processing render job ${job.id}: audio="${job.audioMediaItem.name}" image="${job.imageMediaItem?.name ?? 'none'}"`
+    `Processing render job ${job.id} (mode=${spec?.mode ?? 'legacy'}): audio="${job.audioMediaItem.name}" image="${job.imageMediaItem?.name ?? 'none'}"`
   );
 
   const driveRead = getDriveReadClient();
@@ -244,44 +122,27 @@ export async function processRenderJob(
       data: { status: 'RUNNING' },
     });
 
-    if (!job.audioMediaItem.driveFileId) {
-      throw new Error('audioMediaItem.driveFileId is missing');
-    }
+    const { spec: resolvedSpec, audioItems, imageItems } = await resolveRenderMedia(job, spec);
 
-    // 1. Download audio
-    const audioPath = await downloadDriveFileToTemp(
-      driveRead,
-      job.audioMediaItem.driveFileId,
-      `audio-${job.id}`
-    );
-    tempFiles.push(audioPath);
+    // 1. Download assets based on renderSpec (or legacy fields)
+    const audioPaths = await downloadMediaBatch(driveRead, audioItems, 'audio', tempFiles);
+    const imagePaths = await downloadMediaBatch(driveRead, imageItems, 'image', tempFiles);
 
-    // 2. Download image (or error)
-    let imagePath: string;
-    if (job.imageMediaItem && job.imageMediaItem.driveFileId) {
-      imagePath = await downloadDriveFileToTemp(
-        driveRead,
-        job.imageMediaItem.driveFileId,
-        `image-${job.id}`
-      );
-      tempFiles.push(imagePath);
-    } else {
-      throw new Error('imageMediaItem is missing for render job');
-    }
-
-    // 3. Run ffmpeg to create MP4
-    const tmpDir = path.dirname(audioPath);
-    const outputPath = path.join(tmpDir, `rendered-${job.id}.mp4`);
-    await runFfmpegToMp4(imagePath, audioPath, outputPath);
-    tempFiles.push(outputPath);
-
-    // 4. Upload MP4 to Drive (OAuth user)
-    const uploadInfo = await uploadMp4ToDrive(
-      outputPath,
-      job.audioMediaItem.name
+    // 2. Render into MP4
+    const { outputPath, baseName } = await renderFromSpec(
+      job.id,
+      resolvedSpec,
+      audioPaths,
+      imagePaths,
+      tempFiles,
+      audioItems,
+      imageItems
     );
 
-    // 5. Create MediaItem for the MP4
+    // 3. Upload MP4 to Drive (OAuth user)
+    const uploadInfo = await uploadMp4ToDrive(outputPath, baseName);
+
+    // 4. Create MediaItem for the MP4
     console.log(
       `[mediaItem] Creating MediaItem for uploaded MP4 (Drive id=${uploadInfo.id})`
     );
@@ -299,7 +160,7 @@ export async function processRenderJob(
       `[mediaItem] Created MediaItem ${videoMediaItem.id} for render job ${job.id}`
     );
 
-    // 6. Link output to render job and mark success
+    // 5. Link output to render job and mark success
     await prisma.renderJob.update({
       where: { id: job.id },
       data: {
@@ -322,22 +183,22 @@ export async function processRenderJob(
     });
   } finally {
     // Cleanup temp files
+    const tempDirs = new Set<string>();
     for (const filePath of tempFiles) {
       try {
         if (fs.existsSync(filePath)) {
+          tempDirs.add(path.dirname(filePath));
           fs.unlinkSync(filePath);
-          const dir = path.dirname(filePath);
-          try {
-            fs.rmdirSync(dir);
-          } catch {
-            // ignore if not empty
-          }
         }
       } catch (err) {
-        console.warn(
-          `Failed to clean up temp file or dir "${filePath}":`,
-          err
-        );
+        console.warn(`Failed to clean up temp file "${filePath}":`, err);
+      }
+    }
+    for (const dir of tempDirs) {
+      try {
+        fs.rmdirSync(dir);
+      } catch {
+        // ignore if not empty
       }
     }
   }

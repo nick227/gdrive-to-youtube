@@ -44,8 +44,7 @@ async function main(): Promise<void> {
   );
 
   const scopes = [
-    'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/drive',
   ];
 
   const authUrl = oauth2Client.generateAuthUrl({

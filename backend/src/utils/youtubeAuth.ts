@@ -103,7 +103,11 @@ function getOAuth2Client() {
 export function getAuthUrl(state?: string): string {
   const client = getOAuth2Client();
 
-  const scopes = ['https://www.googleapis.com/auth/youtube.upload'];
+  // Need upload (to push videos) and readonly (to list the channel for verification)
+  const scopes = [
+    'https://www.googleapis.com/auth/youtube.upload',
+    'https://www.googleapis.com/auth/youtube.readonly',
+  ];
 
   return client.generateAuthUrl({
     access_type: 'offline',

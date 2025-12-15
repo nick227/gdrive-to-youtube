@@ -7,17 +7,24 @@ import {
   getOAuthCredentials,
 } from '../utils/youtubeAuth';
 import { google } from 'googleapis';
+import { getCurrentUser } from '../auth/middleware';
 
 const router = Router();
 
 // GET /channels/auth-url?userId=1
 router.get('/auth-url', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  if (!currentUser) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
   const userId = req.query.userId as string;
-  if (!userId) {
+  const parsedUserId = Number.parseInt(userId, 10);
+  if (!userId || Number.isNaN(parsedUserId)) {
     return res.status(400).json({ error: 'userId query parameter required' });
   }
 
-  const state = JSON.stringify({ userId });
+  const state = JSON.stringify({ userId: parsedUserId });
   const authUrl = getAuthUrl(state);
 
   console.log('state', state)
@@ -70,6 +77,17 @@ router.get('/callback', async (req, res) => {
       return res.status(400).json({ error: 'Failed to obtain access token', detail: 'missing_access_token' });
     }
 
+    const scopesGranted = (tokens.scope || '').split(/\s+/).filter(Boolean);
+    const requiredScopes = [
+      'https://www.googleapis.com/auth/youtube.upload',
+      'https://www.googleapis.com/auth/youtube.readonly',
+    ];
+    const missing = requiredScopes.filter((s) => !scopesGranted.includes(s));
+    if (missing.length > 0) {
+      console.error('[OAuth] missing required scopes', { missing, granted: scopesGranted });
+      return res.status(400).json({ error: 'Missing required YouTube permissions', detail: 'missing_scopes' });
+    }
+
     const accessToken = tokens.access_token;
     const newRefreshToken = tokens.refresh_token || null;
     const tokenExpiresAt = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
@@ -115,7 +133,8 @@ router.get('/callback', async (req, res) => {
     if (state) {
       try {
         const stateData = JSON.parse(state as string);
-        userId = parseInt(stateData.userId, 10) || null;
+        const parsed = Number.parseInt(stateData.userId, 10);
+        userId = Number.isNaN(parsed) ? null : parsed;
       } catch {
         // Ignore parse errors
       }

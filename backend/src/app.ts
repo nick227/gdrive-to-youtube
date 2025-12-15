@@ -243,6 +243,37 @@ app.use("/upload-jobs", requireAuth, uploadJobRoutes);
 app.use("/render-jobs", requireAuth, renderJobRoutes);
 
 /* =============================================================================
+   LOCAL DEV UX
+============================================================================= */
+
+if (!isProd) {
+  // When running `npm run dev`, Next.js serves the UI on port 3000.
+  // Redirect "/" hits on the API server to the frontend so devs don't see "Cannot GET /".
+  const frontendDevUrl =
+    process.env.FRONTEND_URL ||
+    process.env.NEXT_PUBLIC_FRONTEND_URL ||
+    "http://localhost:3000";
+
+  app.get("/", (_req, res) => {
+    res.redirect(frontendDevUrl);
+  });
+
+  // Friendly message for other non-API routes during development
+  app.get("*", (req, res, next) => {
+    if (API_PREFIXES.some((prefix) => req.path.startsWith(prefix))) {
+      return next();
+    }
+
+    res
+      .status(404)
+      .type("html")
+      .send(
+        `<!DOCTYPE html><html><body><h1>Backend API server</h1><p>The frontend is running at <a href="${frontendDevUrl}">${frontendDevUrl}</a>.</p></body></html>`
+      );
+  });
+}
+
+/* =============================================================================
    STATIC FRONTEND (Production Only - Next build output in backend/public)
 ============================================================================= */
 

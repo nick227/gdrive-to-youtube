@@ -129,13 +129,12 @@ export default function PendingJobsList({
     }, [uploadJobs, renderJobs]);
 
     return (
-        <div className="section mt-4" 
-                            style={{
-                                border: '1px solid #eee',
-                                borderRadius: 8,
-                                padding: '10px 12px',
-                                background: '#fafafa',
-                            }}>
+        <div className="section mt-4"
+            style={{
+                borderRadius: 8,
+                padding: '10px 12px',
+                background: '#fafafa',
+            }}>
             <div className="flex justify-between items-end mb-2 w-full">
                 <div>
                     <h3 className="section-title" style={{ margin: 0 }}>
@@ -165,40 +164,40 @@ export default function PendingJobsList({
             ) : (
                 <div className="d-flex flex-column gap-2 item-list">
                     {rows.map((row) => (
-                        <div
-                            key={row.id}
-                            className="d-flex flex-column gap-1"
-                        >
-                            <div className="d-flex justify-content-between align-items-center">
-                                <div className="d-flex align-items-center gap-2">
-                                    <div className="badge badge-secondary" style={{ textTransform: 'capitalize' }}>
-                                        {row.kind}
-                                    </div>
-                                    <strong>{row.title}</strong>
-                                </div>
-
-                                <div className="text-muted text-xs">{formatDate(row.createdAt)}</div>
+                    <div
+                        key={row.id}
+                        className="d-flex flex-column gap-1  odd:bg-white even:bg-slate-100"
+                    >
+                        <div className="d-flex justify-content-between align-items-center">
+                            <div className="d-flex align-items-center gap-2">
+                                <strong>{row.title}</strong>
                             </div>
 
-                            <div className="d-flex align-items-center gap-2 flex-wrap">
-                                <StatusBadge status={row.status} scheduledTime={row.scheduledTime} />
-                                {row.subtitle && <div className="text-muted text-sm">{row.subtitle}</div>}
-                                {row.userLabel && <div className="text-muted text-sm">• {row.userLabel}</div>}
-                                {row.meta && <div className="text-muted text-sm">• {row.meta}</div>}
-                                {row.linkHref && (
-                                    <a
-                                        href={row.linkHref}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-sm"
-                                    >
-                                        {row.linkLabel || 'View'}
-                                    </a>
-                                )}
-                            </div>
-
-                            {row.error && <div className="text-error text-xs">{row.error}</div>}
+                            <div className="text-muted text-xs">{formatDate(row.createdAt)}</div>
                         </div>
+
+                        <div className="d-flex align-items-center gap-2 flex-wrap">
+                            <span className="badge badge-secondary" style={{ textTransform: 'capitalize' }}>
+                                {row.kind}:
+                            </span>
+                            <StatusBadge status={row.status} scheduledTime={row.scheduledTime} />
+                            {row.subtitle && <div className="text-muted text-sm">{row.subtitle}</div>}
+                            {row.userLabel && <div className="text-muted text-sm">• {row.userLabel}</div>}
+                            {row.meta && <div className="text-muted text-sm">• {row.meta}</div>}
+                            {row.linkHref && (
+                                <a
+                                    href={row.linkHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm"
+                                >
+                                    {row.linkLabel || 'View'}
+                                </a>
+                            )}
+                        </div>
+
+                        {row.error && <div className="text-error text-xs">{row.error}</div>}
+                    </div>
                     ))}
                 </div>
             )}

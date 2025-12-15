@@ -171,6 +171,7 @@ input[type="text"]:focus {
 
 .badge {
   white-space: nowrap;
+  font-size: var(--space-md)
 }
 
 .badge-idle {

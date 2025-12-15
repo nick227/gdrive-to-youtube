@@ -35,7 +35,7 @@ export default function StatusBadge({ status, text, scheduledTime }: StatusBadge
   displayText = displayText === "Idle" ? "" : displayText;
 
   return (
-    <span className={`badge badge-${status}`}>
+    <span className={`text-xs badge badge-${status}`}>
       {displayText}
     </span>
   );

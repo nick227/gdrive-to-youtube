@@ -471,14 +471,55 @@ export default function MediaTable({
             const shouldShowActions = item.status === 'ACTIVE' || state.kind !== 'idle';
 
             return (
-              <div key={stableKey} className={`media-row ${mimeCategory}`}>
-                <div className={`flex justify-between items-center media-row-type ${mimeCategory}`}>
+              <div key={stableKey} className={`media-item ${mimeCategory}`}>
+                <div className={`flex justify-between items-center media-item-type ${mimeCategory}`}>
                   <div className='flex justify-between items-center'>
                     {mimeCategory === 'other' && <i className="fa-regular fa-question" />}
                     {mimeCategory === 'image' && <i className="fa-regular fa-image" />}
-                    {mimeCategory === 'video' && <i className="fa-regular fa-video" />}
+                    {mimeCategory === 'video' && <i className="fa-solid fa-video" />}
                     {mimeCategory === 'audio' && <i className="fa-solid fa-music" />}
-                    <span className='pl-2 pr-2'>{mimeCategory}</span>
+                  </div>
+                </div>
+
+                <div className="media-item-preview">
+                  <MediaPreview item={item} />
+                </div>
+
+                <div className="media-preview-title truncate" title={fullPath}>{fullPath}</div>
+
+                <div className="media-item-meta text-muted flex justify-between mt-2 align-center">
+                  <div>
+                    <StatusBadge
+                      status={state.kind}
+                      scheduledTime={
+                        state.scheduledTime instanceof Date
+                          ? state.scheduledTime.toISOString()
+                          : undefined
+                      }
+                    />
+                  {/* conditional usage based on file type */}
+                  {mimeCategory === 'video' && (usage.uploadCount || usage.latestUploadStatus) && (
+                    <span className="text-muted text-xs">
+                      {usage.uploadCount}
+                      {usage.latestUploadStatus ? ` ${usage.latestUploadStatus.toLowerCase()}` : ''}
+                    </span>
+                  )}
+                  {mimeCategory === 'audio' && (usage.renderAudioCount || usage.latestRenderStatus) && (
+                    <span className="text-muted text-xs">
+                      {usage.renderAudioCount}
+                      {usage.latestRenderStatus ? ` ${usage.latestRenderStatus.toLowerCase()}` : ''}
+                    </span>
+                  )}
+                  {mimeCategory === 'image' && (usage.latestRenderStatus || usage.renderImageCount) && (
+                    <span className="text-muted text-xs">
+                      {usage.renderImageCount}
+                      {usage.latestRenderStatus ? ` ${usage.latestRenderStatus.toLowerCase()}` : ''}
+                    </span>
+                  )}
+
+                  {state.kind === 'failed' && state.job && (
+                    <span className="text-error text-xs">{state.job.errorMessage}</span>
+                  )}
                   </div>
                   {shouldShowActions && (
                     <RowActions
@@ -488,47 +529,6 @@ export default function MediaTable({
                       onCreateVideo={() => onCreateVideo(item)}
                       onCancelJob={handleCancel}
                     />
-                  )}
-                </div>
-                <div className="media-row-preview">
-                  <MediaPreview item={item} />
-                </div>
-
-                <div className="media-preview-title truncate" title={fullPath}>
-                  <strong>{fullPath}</strong>
-                </div>
-
-                <div className="media-row-meta text-muted text-sm d-flex flex-wrap gap-2">
-                  <StatusBadge
-                    status={state.kind}
-                    scheduledTime={
-                      state.scheduledTime instanceof Date
-                        ? state.scheduledTime.toISOString()
-                        : undefined
-                    }
-                  />
-                  {/* conditional usage based on file type */}
-                  {mimeCategory === 'video' && (
-                    <span className="text-muted text-xs">
-                      uploaded: {usage.uploadCount}
-                      {usage.latestUploadStatus ? ` (${usage.latestUploadStatus.toLowerCase()})` : ''}
-                    </span>
-                  )}
-                  {mimeCategory === 'audio' && (
-                    <span className="text-muted text-xs">
-                      used: {usage.renderAudioCount}
-                      {usage.latestRenderStatus ? ` (${usage.latestRenderStatus.toLowerCase()})` : ''}
-                    </span>
-                  )}
-                  {mimeCategory === 'image' && (
-                    <span className="text-muted text-xs">
-                      used: {usage.renderImageCount}
-                      {usage.latestRenderStatus ? ` (${usage.latestRenderStatus.toLowerCase()})` : ''}
-                    </span>
-                  )}
-
-                  {state.kind === 'failed' && state.job && (
-                    <span className="text-error text-xs">{state.job.errorMessage}</span>
                   )}
                 </div>
               </div>

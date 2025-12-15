@@ -166,7 +166,7 @@ export default function PendingJobsList({
                     {rows.map((row) => (
                     <div
                         key={row.id}
-                        className="d-flex flex-column gap-1  odd:bg-white even:bg-slate-100"
+                        className="d-flex flex-column gap-1  odd:bg-white even:bg-slate-100 p-4"
                     >
                         <div className="d-flex justify-content-between align-items-center">
                             <div className="d-flex align-items-center gap-2">
@@ -177,13 +177,15 @@ export default function PendingJobsList({
                         </div>
 
                         <div className="d-flex align-items-center gap-2 flex-wrap">
-                            <span className="badge badge-secondary" style={{ textTransform: 'capitalize' }}>
-                                {row.kind}:
-                            </span>
-                            <StatusBadge status={row.status} scheduledTime={row.scheduledTime} />
-                            {row.subtitle && <div className="text-muted text-sm">{row.subtitle}</div>}
-                            {row.userLabel && <div className="text-muted text-sm">• {row.userLabel}</div>}
-                            {row.meta && <div className="text-muted text-sm">• {row.meta}</div>}
+                            <div className="text-sm">
+                            type: {row.kind}    
+                            </div>
+                            <div className="text-sm">
+                            status: <StatusBadge status={row.status} scheduledTime={row.scheduledTime} />
+                            </div>
+                            {row.subtitle && <div className="text-muted text-sm">subtitle: {row.subtitle}</div>}
+                            {row.userLabel && <div className="text-muted text-sm">row: {row.userLabel}</div>}
+                            {row.meta && <div className="text-muted text-sm">meta: {row.meta}</div>}
                             {row.linkHref && (
                                 <a
                                     href={row.linkHref}

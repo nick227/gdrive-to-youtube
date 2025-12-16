@@ -20,7 +20,7 @@ export default function CreateVideoSlideshowControls({
 
       <div className="slideshow-grid mt-4">
         <h6>Interval</h6>
-        <label className="flex flex-col gap-1 mt-2">
+        <label className="flex flex-col gap-1">
           <input
             type="number"
             min={1}

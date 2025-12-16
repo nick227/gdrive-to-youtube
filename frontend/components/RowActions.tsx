@@ -33,7 +33,11 @@ const IDLE_ACTIONS_BY_CATEGORY: Record<MediaCategory, IdleActionConfig | null> =
     handlerKey: 'onCreateVideo',
     icon: <i className="fa-solid fa-video" aria-hidden="true" />,
   },
-  image: null,
+  image: {
+    label: 'Render',
+    handlerKey: 'onCreateVideo',
+    icon: <i className="fa-solid fa-video" aria-hidden="true" />,
+  },
   other: null,
 };
 

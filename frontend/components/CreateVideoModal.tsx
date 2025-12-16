@@ -15,6 +15,7 @@ interface CreateVideoModalProps {
   isOpen: boolean;
   audioItem: MediaItem | null;
   imageItems: MediaItem[];
+  initialImageId?: number | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -49,6 +50,7 @@ export default function CreateVideoModal({
   isOpen,
   audioItem,
   imageItems,
+  initialImageId,
   onClose,
   onSuccess,
 }: CreateVideoModalProps) {
@@ -82,13 +84,13 @@ export default function CreateVideoModal({
     setWaveformConfig(defaultWaveform);
     setOutputFileName(audioItem?.name || '');
 
-    const initialImageId = imageItems[0]?.id ?? null;
-    setImageSequence(initialImageId ? [initialImageId] : []);
-    setPreviewImageId(initialImageId);
+    const resolvedInitialImageId = initialImageId ?? imageItems[0]?.id ?? null;
+    setImageSequence(resolvedInitialImageId ? [resolvedInitialImageId] : []);
+    setPreviewImageId(resolvedInitialImageId);
 
     const initialAudioId = audioItem?.id ?? null;
     setAudioSequence(initialAudioId ? [initialAudioId] : []);
-  }, [isOpen, audioItem, imageItems]);
+  }, [isOpen, audioItem, imageItems, initialImageId]);
 
   // Fetch available audios when modal opens
   useEffect(() => {

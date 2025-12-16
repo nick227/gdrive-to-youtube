@@ -59,7 +59,7 @@ export default function CreateVideoImageSequence({
             return (
               <div
                 key={idx}
-                className="flex items-center gap-3 p-2 cursor-pointer hover:border-gray-400"
+                className="flex items-center gap-3 cursor-pointer hover:border-gray-400"
                 onClick={() => onPreviewChange(id)}
               >
                 <select

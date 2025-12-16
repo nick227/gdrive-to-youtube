@@ -7,7 +7,7 @@ import MediaTable from '../components/MediaTable';
 import PendingJobsList from '../components/PendingJobsList';
 import QuickUploadModal from '../components/QuickUploadModal';
 import CreateVideoModal from '../components/CreateVideoModal';
-import { MediaItem } from '../types/api';
+import { MediaItem, YoutubeChannel } from '../types/api';
 import { API_URL } from '../config/api';
 
 export default function Page() {
@@ -89,21 +89,33 @@ export default function Page() {
   return (
     <main className="page-container">
       <div className="section-header">
-        <h1 className="page-title" style={{ marginBottom: 0 }}>YouTube Upload Manager</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          {user && (
-            <a
-              className="btn link"
-              href={`${API_URL}/channels/auth-url?userId=${user.id}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              YouTube channel +
-            </a>
-          )}
+        <h1 className="page-title">YouTube Upload Manager</h1>
+        <div className='flex flex-nowrap toolbar'>
+          <div>
+            {user && (
+              <div className='mb-2'>
+                <a
+                  className="btn-link"
+                  href={`${API_URL}/channels/auth-url?userId=${user.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >Link YouTube Account</a>
+              </div>
+            )}
+            <div>
+              {user && channels && (
+                <>
+                  {channels.map((channel) => (
+                    <span className='p-2 bg-amber-50' key={channel.id}>
+                      {channel.title ?? channel.channelId}
+                    </span>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>  
           {user ? (
             <>
-              <span className="text-muted text-sm">{user.email}</span>
               <button className="btn btn-secondary" onClick={logout}>
                 Logout
               </button>
@@ -140,37 +152,46 @@ export default function Page() {
       )}
 
       {user && (
-      <section className="section">
-        <MediaTable
-          media={media}
-          uploadJobs={uploadJobs}
-          renderJobs={renderJobs}
-          onPostToYouTube={openUploadModal}
-          onCreateVideo={openCreateVideoModal}
-          onCancelJob={handleCancelJob}
+        <section className="section">
+          <MediaTable
+            media={media}
+            uploadJobs={uploadJobs}
+            renderJobs={renderJobs}
+            onPostToYouTube={openUploadModal}
+            onCreateVideo={openCreateVideoModal}
+            onCancelJob={handleCancelJob}
+          />
+        </section>
+      )}
+
+
+      {user && (
+        <QuickUploadModal
+          isOpen={quickUploadOpen}
+          mediaItem={selectedMediaItem}
+          channels={channels}
+          onClose={closeModals}
+          onSuccess={handleModalSuccess}
         />
-      </section>
-      )}
-
-
-      {user && (
-      <QuickUploadModal
-        isOpen={quickUploadOpen}
-        mediaItem={selectedMediaItem}
-        channels={channels}
-        onClose={closeModals}
-        onSuccess={handleModalSuccess}
-      />
       )}
 
       {user && (
-      <CreateVideoModal
-        isOpen={createVideoOpen}
-        audioItem={selectedMediaItem}
-        imageItems={imageItems}
-        onClose={closeModals}
-        onSuccess={handleModalSuccess}
-      />
+        <CreateVideoModal
+          isOpen={createVideoOpen}
+          audioItem={
+            selectedMediaItem && selectedMediaItem.mimeType.startsWith('audio/')
+              ? selectedMediaItem
+              : null
+          }
+          initialImageId={
+            selectedMediaItem && selectedMediaItem.mimeType.startsWith('image/')
+              ? selectedMediaItem.id
+              : undefined
+          }
+          imageItems={imageItems}
+          onClose={closeModals}
+          onSuccess={handleModalSuccess}
+        />
       )}
 
       {!user && (

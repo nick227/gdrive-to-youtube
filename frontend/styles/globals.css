@@ -7,7 +7,7 @@
 *,
 *::before,
 *::after {
-  box-sizing: border-box;
+  box-sizing: content-box;
 }
 
 body {
@@ -38,15 +38,27 @@ a:hover {
   text-decoration: underline;
 }
 
+.section-header .toolbar {
+  white-space: nowrap;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4;
+}
+
+.section-header .toolbar button {
+  margin-left: 20px;
+}
+
 .media-list {
-  width: var(--max-width-page);
+  width: 100%;
 }
 
 .media-list-body {
   width: 100%;
   display: grid;
   grid-template-columns: var(--body-grid-template-columns);
-  gap: 6px;
+  gap: 20px;
 }
 
 .media-item {

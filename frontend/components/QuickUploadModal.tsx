@@ -114,7 +114,7 @@ export default function QuickUploadModal({
             <div className="form-readonly truncate">{mediaItem.name}</div>
           </div>
 
-          <div className="form-field">
+          <div className="form-field mb-2">
             <select
               className="form-select"
               required
@@ -190,7 +190,7 @@ export default function QuickUploadModal({
             )}
           </div>
 
-          <h6>Title</h6>
+          <h6 className='mt-2'>Title</h6>
           <div className="form-field">
             <input
               className="form-input"
@@ -202,7 +202,7 @@ export default function QuickUploadModal({
             />
           </div>
 
-            <h6>Description</h6>
+            <h6 className='mt-2'>Description</h6>
           <div className="form-field">
             <textarea
               className="form-textarea"
@@ -213,7 +213,7 @@ export default function QuickUploadModal({
             />
           </div>
 
-            <h6>Tags</h6>
+            <h6 className='mt-2'>Tags</h6>
           <div className="form-field">
             <input
               className="form-input"
@@ -224,7 +224,7 @@ export default function QuickUploadModal({
             />
           </div>
 
-            <h6>Status</h6>
+            <h6 className='mt-2'>Status</h6>
           <div className="form-field">
             <select
               className="form-select"
@@ -238,7 +238,7 @@ export default function QuickUploadModal({
             </select>
           </div>
 
-          <div className="form-field">
+          <div className="form-field mt-4">
             <label className="form-checkbox-label">
               <input
                 type="checkbox"
@@ -260,7 +260,7 @@ export default function QuickUploadModal({
 
           {error && <div className="alert alert-error">{error}</div>}
 
-          <div className="modal-actions">
+          <div className="modal-actions className='mt-2'">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancel
             </button>

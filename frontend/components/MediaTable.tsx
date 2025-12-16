@@ -402,7 +402,7 @@ export default function MediaTable({
     <div className="media-list">
       {/* Controls: filters + sort */}
       <div
-        className="flex flex-wrap align-items-center gap-3 mb-4"
+        className="flex align-items-center gap-3 mb-4"
         role="toolbar"
         aria-label="Media filters and sorting"
       >

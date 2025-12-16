@@ -45,7 +45,7 @@ export default function CreateVideoAudioSequence({
           {audioIds.map((id, idx) => {
             const audio = audioMap.get(id);
             return (
-              <div key={idx} className="p-3 flex flex-col gap-2 max-h-32 overflow-y-auto">
+              <div key={idx} className="flex flex-col gap-2 max-h-32 overflow-y-auto">
                 <div className="flex items-center gap-2">
                   <select
                     className="form-select"

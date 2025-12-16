@@ -463,12 +463,24 @@ export default function MediaTable({
             const { state, mimeCategory, sizeNum, formattedDate, fullPath, stableKey, usage } =
               item._enriched;
 
+            console.log(usage)
             const jobId = state.job?.id;
             const handleCancel =
               onCancelJob && jobId != null ? () => onCancelJob(jobId) : undefined;
 
-            // Show actions when item is active OR there's a job in progress
-            const shouldShowActions = item.status === 'ACTIVE' || state.kind !== 'idle';
+            function deriveCompactStatus(): string {
+              if (!usage) return ''
+
+              const count =
+                (usage.renderAudioCount ?? 0) +
+                (usage.renderImageCount ?? 0) +
+                (usage.renderOutputCount ?? 0)
+
+              if (!usage.latestRenderStatus || count === 0) return ''
+
+              return `${usage.latestRenderStatus} ${count}`
+            }
+
 
             return (
               <div key={stableKey} className={`media-item ${mimeCategory}`}>
@@ -488,7 +500,7 @@ export default function MediaTable({
                     title={fullPath}
                     className="min-w-0 line-clamp-3 break-all items-baseline-start"
                   >
-                    {fullPath}
+                    {fullPath} <span className='bg-amber-50 whitespace-nowrap'>{deriveCompactStatus()}</span>
                   </span>
                 </div>
 
@@ -498,15 +510,13 @@ export default function MediaTable({
                     <span className="text-error text-xs">{state.job.errorMessage}</span>
                   )}
 
-                  {shouldShowActions && (
-                    <RowActions
-                      mediaItem={item}
-                      state={state}
-                      onPostToYouTube={() => onPostToYouTube(item)}
-                      onCreateVideo={() => onCreateVideo(item)}
-                      onCancelJob={handleCancel}
-                    />
-                  )}
+                  <RowActions
+                    mediaItem={item}
+                    state={state}
+                    onPostToYouTube={() => onPostToYouTube(item)}
+                    onCreateVideo={() => onCreateVideo(item)}
+                    onCancelJob={handleCancel}
+                  />
                 </div>
               </div>
             );

@@ -4,11 +4,34 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMediaDashboard } from '../hooks/useMediaDashboard';
 import MediaTable from '../components/MediaTable';
+import ScheduleView from '../components/schedule/ScheduleView';
 import PendingJobsList from '../components/PendingJobsList';
 import QuickUploadModal from '../components/QuickUploadModal';
 import CreateVideoModal from '../components/CreateVideoModal';
 import { MediaItem } from '../types/api';
 import { API_URL } from '../config/api';
+import { ScheduleItem } from '../components/schedule/types'
+import { UploadJob } from '../types/api'
+
+function mapUploadJobsToScheduleItems(
+  jobs: UploadJob[]
+): ScheduleItem[] {
+  return jobs
+    .filter(j => j.scheduledFor) // schedule only
+    .map(j => {
+      const [date, time] = j.scheduledFor!.split('T')
+
+      return {
+        id: j.id,
+        date,                         // YYYY-MM-DD
+        time: time?.slice(0, 5),      // HH:mm
+        title: j.title,
+        status: j.youtubeVideo?.status ?? j.status,
+        channelTitle: j.youtubeChannel?.title ?? null,
+        privacyStatus: j.privacyStatus,
+      }
+    })
+}
 
 const HISTORY_STORAGE_KEY = 'historyOpen';
 
@@ -19,6 +42,11 @@ export default function Page() {
   const [quickUploadOpen, setQuickUploadOpen] = useState(false);
   const [createVideoOpen, setCreateVideoOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
+
+  const scheduleItems = useMemo(
+  () => mapUploadJobsToScheduleItems(uploadJobs),
+  [uploadJobs]
+)
 
   const imageItems = useMemo(
     () => media.filter((m) => m.mimeType.startsWith('image/')),
@@ -125,30 +153,26 @@ export default function Page() {
   return (
     <main className="page-container">
       <div className="section-header">
-        <h1 className="page-title">YouTube Upload Manager</h1>
+        <h1 className="page-title">Youtube Upload Manager</h1>
         <div className='flex flex-nowrap toolbar'>
           <div>
             {user && (
-              <div className='mb-2'>
                 <a
                   className="btn-link"
                   href={`${API_URL}/channels/auth-url?userId=${user.id}`}
                   target="_blank"
                   rel="noreferrer"
-                >Link YouTube Account</a>
-              </div>
+                >Linked Accounts</a>
             )}
-            <div>
               {user && channels && (
                 <>
                   {channels.map((channel) => (
-                    <span className='p-2 bg-amber-50' key={channel.id}>
+                    <span className='p-2 mx-2 bg-amber-50' key={channel.id}>
                       {channel.title ?? channel.channelId}
                     </span>
                   ))}
                 </>
               )}
-            </div>
           </div>  
           {user ? (
             <>
@@ -176,6 +200,7 @@ export default function Page() {
         </div>
       )}
 
+<div className='flex w-full justify-between'>
       {user && (
         <div className="history-panel">
           <PendingJobsList
@@ -189,6 +214,14 @@ export default function Page() {
         </div>
       )}
 
+      {user && (
+        <div className="section-schedule">
+          <ScheduleView
+            items={scheduleItems}
+          />
+        </div>
+      )}
+</div>
       {user && (
         <section className="section">
           <MediaTable

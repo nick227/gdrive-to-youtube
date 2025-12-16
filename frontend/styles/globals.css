@@ -156,7 +156,10 @@ a:hover {
 }
 
 .history-panel .item-list {
-  max-height: 25vh;
+  max-height: 400px;
   overflow-y: auto;
 }
 
+.section-schedule {
+  min-height: 460px;
+}

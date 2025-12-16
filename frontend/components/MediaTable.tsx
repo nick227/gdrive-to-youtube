@@ -402,7 +402,7 @@ export default function MediaTable({
     <div className="media-list">
       {/* Controls: filters + sort */}
       <div
-        className="flex align-items-center gap-3 mb-4"
+        className="flex flex-wrap align-items-center gap-3 mb-4"
         role="toolbar"
         aria-label="Media filters and sorting"
       >
@@ -473,11 +473,12 @@ export default function MediaTable({
             return (
               <div key={stableKey} className={`media-item ${mimeCategory}`}>
                 <div className={`flex justify-between items-center media-item-type ${mimeCategory}`}>
-                  <div className='flex justify-between items-center'>
+                  <div className='flex justify-between items-center truncate'>
                     {mimeCategory === 'other' && <i className="fa-regular fa-question" />}
                     {mimeCategory === 'image' && <i className="fa-regular fa-image" />}
                     {mimeCategory === 'video' && <i className="fa-solid fa-video" />}
                     {mimeCategory === 'audio' && <i className="fa-solid fa-music" />}
+                    <span title={fullPath} className='ml-2'>{fullPath}</span>
                   </div>
                 </div>
 
@@ -485,42 +486,10 @@ export default function MediaTable({
                   <MediaPreview item={item} />
                 </div>
 
-                <div className="media-preview-title truncate" title={fullPath}>{fullPath}</div>
-
-                <div className="media-item-meta text-muted flex justify-between mt-2 align-center">
-                  <div>
-                    <StatusBadge
-                      status={state.kind}
-                      scheduledTime={
-                        state.scheduledTime instanceof Date
-                          ? state.scheduledTime.toISOString()
-                          : undefined
-                      }
-                    />
-                  {/* conditional usage based on file type */}
-                  {mimeCategory === 'video' && (usage.uploadCount || usage.latestUploadStatus) && (
-                    <span className="text-muted text-xs">
-                      {usage.uploadCount}
-                      {usage.latestUploadStatus ? ` ${usage.latestUploadStatus.toLowerCase()}` : ''}
-                    </span>
-                  )}
-                  {mimeCategory === 'audio' && (usage.renderAudioCount || usage.latestRenderStatus) && (
-                    <span className="text-muted text-xs">
-                      {usage.renderAudioCount}
-                      {usage.latestRenderStatus ? ` ${usage.latestRenderStatus.toLowerCase()}` : ''}
-                    </span>
-                  )}
-                  {mimeCategory === 'image' && (usage.latestRenderStatus || usage.renderImageCount) && (
-                    <span className="text-muted text-xs">
-                      {usage.renderImageCount}
-                      {usage.latestRenderStatus ? ` ${usage.latestRenderStatus.toLowerCase()}` : ''}
-                    </span>
-                  )}
-
+                <div className='media-item-footer flex justify-end pr-2 mt-4 mb-4'>
                   {state.kind === 'failed' && state.job && (
                     <span className="text-error text-xs">{state.job.errorMessage}</span>
                   )}
-                  </div>
                   {shouldShowActions && (
                     <RowActions
                       mediaItem={item}

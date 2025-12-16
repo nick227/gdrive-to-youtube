@@ -111,12 +111,10 @@ export default function QuickUploadModal({
       {mediaItem && (
         <form onSubmit={handleSubmit}>
           <div className="form-field">
-            <label className="form-label">File</label>
             <div className="form-readonly truncate">{mediaItem.name}</div>
           </div>
 
           <div className="form-field">
-            <label className="form-label">Channel *</label>
             <select
               className="form-select"
               required
@@ -133,8 +131,6 @@ export default function QuickUploadModal({
           </div>
 
           <div className="form-field">
-            <label>Thumbnail</label>
-
             {imageItems.length === 0 ? (
               <div className="alert alert-warning" style={{ marginBottom: 8 }}>
                 No images available. Upload images to Drive first.
@@ -194,8 +190,8 @@ export default function QuickUploadModal({
             )}
           </div>
 
+          <h6>Title</h6>
           <div className="form-field">
-            <label className="form-label">Title *</label>
             <input
               className="form-input"
               type="text"
@@ -206,8 +202,8 @@ export default function QuickUploadModal({
             />
           </div>
 
+            <h6>Description</h6>
           <div className="form-field">
-            <label className="form-label">Description *</label>
             <textarea
               className="form-textarea"
               required
@@ -217,8 +213,8 @@ export default function QuickUploadModal({
             />
           </div>
 
+            <h6>Tags</h6>
           <div className="form-field">
-            <label className="form-label">Tags (comma-separated)</label>
             <input
               className="form-input"
               type="text"
@@ -228,8 +224,8 @@ export default function QuickUploadModal({
             />
           </div>
 
+            <h6>Status</h6>
           <div className="form-field">
-            <label className="form-label">Privacy Status *</label>
             <select
               className="form-select"
               required

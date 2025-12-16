@@ -74,15 +74,8 @@ export default function MediaPreview({ item }: MediaPreviewProps) {
 
   if (category === 'audio') {
     return (
-      <div>
-        <img
-          src="https://snapbuilder.com/code_snippet_generator/image_placeholder_generator/640x480/f5f5f5/DDDDDD/Audio"
-          alt="Audio"
-          style={{
-            objectFit: 'contain',
-            display: 'block',
-          }}
-        />
+      <div className='w-full media-item-audio'>
+        <div className='audio-label'>Audio</div>
         <audio controls src={src} />
       </div>
     );

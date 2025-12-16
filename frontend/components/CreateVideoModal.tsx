@@ -213,7 +213,7 @@ export default function CreateVideoModal({
         )}
 
         {previewImage && (
-          <div className="form-field mt-2">
+          <div className="form-field">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`${API_URL}/media-preview/${previewImage.driveFileId}/image`}

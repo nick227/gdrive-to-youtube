@@ -72,10 +72,11 @@
   --z-modal: 1000;
 
   /* Layout */
-  --max-height-item: 400px;
-  --max-width-item: 400px;
-  --max-width-page: 1200px;
+  --max-width-item: 300px;
+  --max-height-item: 360px;
+  --max-width-page: 100%;
   --max-width-modal: 480px;
+  --body-grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 

@@ -25,8 +25,8 @@ h1{
 }
 
 h6{
-  background-color: var(--color-bg-muted);
-  padding: var(--space-sm);
+  font-weight: 600;
+  padding: 0;
 }
 
 a {
@@ -70,9 +70,6 @@ a:hover {
   border-top: 4px solid var(--color-bg-muted);
 }
 
-.media-item-type {
-  height: 40px;
-}
 .media-item-preview {
   height: 240px;
   background-color: black;
@@ -80,9 +77,6 @@ a:hover {
   flex-direction: column;
   justify-content: center;
   position: relative;
-}
-.media-item-footer{
-  height: 30px;
 }
 .audio-label {
   height: 200px;
@@ -130,12 +124,6 @@ a:hover {
   max-width: 100%;
   max-height: 100%;
   margin: 0 auto;
-}
-
-.media-item-type{
-  color: black;
-  padding: 5px 15px;
-  text-transform: uppercase;
 }
 
 .media-item.image {

@@ -79,7 +79,7 @@ export default function CreateVideoAudioSequence({
           })}
         </div>
       )}
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end mt-2 mb-2">
         <button type="button" className="btn btn-small btn-secondary" onClick={addAudio}>
           Add +
         </button>

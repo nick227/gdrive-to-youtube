@@ -9,6 +9,8 @@ interface PendingJobsListProps {
     uploadJobs: UploadJob[];
     renderJobs: RenderJob[];
     onRefresh: () => void;
+    onToggle: () => void;
+    isOpen?: boolean;
     loading?: boolean;
 }
 
@@ -65,6 +67,8 @@ export default function PendingJobsList({
     uploadJobs,
     renderJobs,
     onRefresh,
+    onToggle,
+    isOpen = true,
     loading = false,
 }: PendingJobsListProps) {
     const rows = useMemo<PendingJobRow[]>(() => {
@@ -129,18 +133,23 @@ export default function PendingJobsList({
     }, [uploadJobs, renderJobs]);
 
     return (
-        <div className="section mt-4"
-            style={{
-                borderRadius: 8,
-                padding: '10px 12px',
-                background: '#fafafa',
-            }}>
-            <div className="flex justify-between items-end mb-2 w-full">
-                <div>
-                    <h3 className="section-title" style={{ margin: 0 }}>
-                        History
+        <div className="section mt-4 rounded bg-slate-50 p-3">
+            <div className="flex justify-between items-center mb-2 w-full">
+                <div className="flex items-center gap-2">
+                    <h3 className="section-title m-0">
+                        History {rows.length > 0 && `(${rows.length})`}
                     </h3>
+                    {!isOpen && <span className="text-xs text-muted">collapsed</span>}
                 </div>
+                <div className='flex justify-end items-center gap-1'>
+                <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={onToggle}
+                    disabled={loading}
+                >
+                        <i className={`fa-solid ${isOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+                    </button>
 
                 <button
                     type="button"
@@ -155,9 +164,10 @@ export default function PendingJobsList({
                         <i className="fa-solid fa-rotate" />
                     )}
                 </button>
+                </div>
             </div>
 
-            {rows.length === 0 ? (
+            {!isOpen ? null : rows.length === 0 ? (
                 <div className="alert alert-info" style={{ marginBottom: 0 }}>
                     none
                 </div>
@@ -178,14 +188,14 @@ export default function PendingJobsList({
 
                         <div className="d-flex align-items-center gap-2 flex-wrap">
                             <div className="text-sm">
-                            type: {row.kind}    
+                            Type: {row.kind}
                             </div>
                             <div className="text-sm">
-                            status: <StatusBadge status={row.status} scheduledTime={row.scheduledTime} />
+                            Status: <StatusBadge status={row.status} scheduledTime={row.scheduledTime} />
                             </div>
-                            {row.subtitle && <div className="text-muted text-sm">subtitle: {row.subtitle}</div>}
-                            {row.userLabel && <div className="text-muted text-sm">row: {row.userLabel}</div>}
-                            {row.meta && <div className="text-muted text-sm">meta: {row.meta}</div>}
+                            {row.subtitle && <div className="text-muted text-sm">Channel: {row.subtitle}</div>}
+                            {row.userLabel && <div className="text-muted text-sm">Requested by: {row.userLabel}</div>}
+                            {row.meta && <div className="text-muted text-sm">Source: {row.meta}</div>}
                             {row.linkHref && (
                                 <a
                                     href={row.linkHref}

@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMediaDashboard } from '../hooks/useMediaDashboard';
 import MediaTable from '../components/MediaTable';
 import PendingJobsList from '../components/PendingJobsList';
 import QuickUploadModal from '../components/QuickUploadModal';
 import CreateVideoModal from '../components/CreateVideoModal';
-import { MediaItem, YoutubeChannel } from '../types/api';
+import { MediaItem } from '../types/api';
 import { API_URL } from '../config/api';
+
+const HISTORY_STORAGE_KEY = 'historyOpen';
 
 export default function Page() {
   const { user, loading: authLoading, login, logout } = useAuth();
@@ -16,8 +18,27 @@ export default function Page() {
   const [selectedMediaItem, setSelectedMediaItem] = useState<MediaItem | null>(null);
   const [quickUploadOpen, setQuickUploadOpen] = useState(false);
   const [createVideoOpen, setCreateVideoOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(true);
 
-  const imageItems = media.filter((m) => m.mimeType.startsWith('image/'));
+  const imageItems = useMemo(
+    () => media.filter((m) => m.mimeType.startsWith('image/')),
+    [media]
+  );
+
+  // Hydrate history toggle from localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (raw === 'true' || raw === 'false') {
+      setHistoryOpen(raw === 'true');
+    }
+  }, []);
+
+  // Persist history toggle to localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(HISTORY_STORAGE_KEY, historyOpen ? 'true' : 'false');
+  }, [historyOpen]);
 
   const handleCancelJob = useCallback(async (jobId: number) => {
     try {
@@ -47,23 +68,38 @@ export default function Page() {
     reload();
   }, [closeModals, reload]);
 
-  const openUploadModal = useCallback((item: MediaItem) => {
-    if (!user) {
-      login();
-      return;
-    }
-    setSelectedMediaItem(item);
-    setQuickUploadOpen(true);
-  }, [user, login]);
+  const requireAuthThen = useCallback(
+    (fn: () => void) => {
+      if (!user) {
+        login();
+        return;
+      }
+      fn();
+    },
+    [user, login]
+  );
 
-  const openCreateVideoModal = useCallback((item: MediaItem) => {
-    if (!user) {
-      login();
-      return;
-    }
-    setSelectedMediaItem(item);
-    setCreateVideoOpen(true);
-  }, [user, login]);
+  const openUploadModal = useCallback(
+    (item: MediaItem) =>
+      requireAuthThen(() => {
+        setSelectedMediaItem(item);
+        setQuickUploadOpen(true);
+      }),
+    [requireAuthThen]
+  );
+
+  const openCreateVideoModal = useCallback(
+    (item: MediaItem) =>
+      requireAuthThen(() => {
+        setSelectedMediaItem(item);
+        setCreateVideoOpen(true);
+      }),
+    [requireAuthThen]
+  );
+
+  const toggleHistory = useCallback(() => {
+    setHistoryOpen((prev) => !prev);
+  }, []);
 
   if (authLoading || loading) {
     return (
@@ -146,6 +182,8 @@ export default function Page() {
             uploadJobs={uploadJobs}
             renderJobs={renderJobs}
             onRefresh={reload}
+            onToggle={toggleHistory}
+            isOpen={historyOpen}
             loading={loading}
           />
         </div>

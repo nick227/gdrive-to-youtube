@@ -37,9 +37,6 @@ export default function CreateVideoSlideshowControls({
               }
             }}
           />
-          <small className="text-muted">
-            Used only when auto-time is disabled.
-          </small>
         </label>
 
         <label className="flex items-center gap-2">
@@ -50,7 +47,7 @@ export default function CreateVideoSlideshowControls({
               onChange({ ...value, autoTime: e.target.checked })
             }
           />
-          <span>Auto-time images to audio length</span>
+          <span>Calculate interval</span>
         </label>
 
         <label className="flex items-center gap-2">
@@ -61,7 +58,7 @@ export default function CreateVideoSlideshowControls({
               onChange({ ...value, repeatImages: e.target.checked })
             }
           />
-          <span>Loop images until audio ends</span>
+          <span>Loop images</span>
         </label>
       </div>
     </div>

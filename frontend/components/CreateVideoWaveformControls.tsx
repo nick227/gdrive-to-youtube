@@ -14,7 +14,7 @@ type Props = {
 export default function CreateVideoWaveformControls({ value, onChange }: Props) {
   return (
     <div className="form-field">
-      <label className="form-label">Waveform Controls</label>
+      <h6 className="form-label">Waveform Controls</h6>
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
         <label className="flex flex-col gap-1">
           <span>Background Color</span>

@@ -40,14 +40,15 @@ export function useMediaDashboard() {
         channelsRes.ok ? channelsRes.json() : [],
       ]);
 
-      setState({
+      setState((prev) => ({
+        ...prev,
         media,
         uploadJobs,
         renderJobs,
         channels,
         loading: false,
         error: null,
-      });
+      }));
     } catch (err) {
       console.error('Failed to load data:', err);
       setState((prev) => ({

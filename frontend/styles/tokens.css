@@ -6,6 +6,7 @@
   /* Colors - Primary */
   --color-primary: #0070f3;
   --color-primary-hover: #005bb5;
+  --color-primary-active: #0088aa;
 
   /* Colors - Semantic */
   --color-success-bg: #d4edda;
@@ -53,7 +54,7 @@
   --font-size-sm: 0.85rem;
   --font-size-base: 0.9rem;
   --font-size-md: 1rem;
-  --font-size-lg: 1.25rem;
+  --font-size-lg: 1.2rem;
   --font-size-xl: 1.5rem;
   --font-size-2xl: 1.75rem;
   --font-weight-normal: 400;

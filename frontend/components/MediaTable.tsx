@@ -472,24 +472,32 @@ export default function MediaTable({
 
             return (
               <div key={stableKey} className={`media-item ${mimeCategory}`}>
-                <div className={`flex justify-between items-center media-item-type ${mimeCategory}`}>
-                  <div className='flex justify-between items-center truncate'>
-                    {mimeCategory === 'other' && <i className="fa-regular fa-question" />}
-                    {mimeCategory === 'image' && <i className="fa-regular fa-image" />}
-                    {mimeCategory === 'video' && <i className="fa-solid fa-video" />}
-                    {mimeCategory === 'audio' && <i className="fa-solid fa-music" />}
-                    <span title={fullPath} className='ml-2'>{fullPath}</span>
-                  </div>
-                </div>
+
+                  {mimeCategory === 'other' && <i className="fa-regular fa-question shrink-0 text-xl" />}
+                  {mimeCategory === 'image' && <i className="fa-regular fa-image shrink-0 text-xl" />}
+                  {mimeCategory === 'video' && <i className="fa-solid fa-video shrink-0 text-xl" />}
+                  {mimeCategory === 'audio' && <i className="fa-solid fa-music shrink-0 text-xl" />}
 
                 <div className="media-item-preview">
                   <MediaPreview item={item} />
                 </div>
 
-                <div className='media-item-footer flex justify-end pr-2 mt-4 mb-4'>
+                <div className={`flex items-start h-20 px-4 py-1 ${mimeCategory}`}>
+
+                  <span
+                    title={fullPath}
+                    className="min-w-0 line-clamp-3 break-all items-baseline-start"
+                  >
+                    {fullPath}
+                  </span>
+                </div>
+
+                <div className='media-item-footer flex justify-end px-4 gap-4 mb-4'>
+
                   {state.kind === 'failed' && state.job && (
                     <span className="text-error text-xs">{state.job.errorMessage}</span>
                   )}
+
                   {shouldShowActions && (
                     <RowActions
                       mediaItem={item}

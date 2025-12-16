@@ -33,7 +33,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
         <button className="modal-close" onClick={onClose} aria-label="Close">
           ×
         </button>
-        {title && <h2 className="modal-title">{title}</h2>}
+        {title && <h2 className="text-xl mb-4">{title}</h2>}
         {children}
       </div>
     </div>

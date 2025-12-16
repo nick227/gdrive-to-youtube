@@ -97,7 +97,7 @@ export default function CreateVideoImageSequence({
           })}
         </div>
       )}
-      <div className="flex items-center justify-end mb-2">
+      <div className="flex items-center justify-end mt-2 mb-2">
         <button type="button" className="btn btn-small btn-secondary" onClick={addImageRow}>
           Add +
         </button>

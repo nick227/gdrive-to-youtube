@@ -19,7 +19,7 @@ input[type="text"]:focus {
    -------------------------------------------------------------------------- */
 
 .btn {
-  padding: var(--space-sm) var(--space-md);
+  padding: 0 var(--space-md);
   font-size: var(--font-size-base);
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -43,13 +43,13 @@ input[type="text"]:focus {
 }
 
 .btn-primary {
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-.btn-primary:hover:not(:disabled) {
   background: var(--color-dark);
   color: white;
+}
+
+.btn-primary:active:not(:disabled) {
+  color: var(--color-bg-muted);
+  background: var(--color-primary-active);
 }
 
 .btn-login {
@@ -74,7 +74,7 @@ input[type="text"]:focus {
 }
 
 .btn-sm {
-  padding: var(--space-xs) var(--space-sm);
+  padding: 0 var(--space-sm);
   font-size: 0.8rem;
 }
 
@@ -107,13 +107,6 @@ input[type="text"]:focus {
 /* --------------------------------------------------------------------------
    Form Elements
    -------------------------------------------------------------------------- */
-
-
-.form-label {
-  display: block;
-  margin-bottom: var(--space-xs);
-  font-weight: var(--font-weight-medium);
-}
 
 .form-input,
 .form-select,
@@ -253,12 +246,6 @@ input[type="text"]:focus {
 
 .modal-close:hover {
   color: var(--color-text);
-}
-
-.modal-title {
-  margin: 0 0 var(--space-md) 0;
-  font-size: var(--font-size-lg);
-  padding-right: var(--space-xl);
 }
 
 .modal-actions {

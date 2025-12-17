@@ -8,7 +8,7 @@
     "prebuild": "prisma validate",
     "dev": "ts-node src/server.ts",
     "build": "tsc && node scripts/copy-frontend.js",
-    "start": "prisma migrate deploy && node dist/src/server.js",
+    "start": "node dist/src/server.js",
     "postinstall": "prisma generate",
     "test": "vitest run",
     "test:watch": "vitest",

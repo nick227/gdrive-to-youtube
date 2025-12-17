@@ -2,7 +2,7 @@ import app from './app';
 import prisma from './prismaClient';
 
 // Start scheduler in production
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'production' && process.env.ENABLE_SCHEDULER  === 'true') {
   import('./scheduler')
     .then(() => {
       console.log('[Scheduler] Started successfully');

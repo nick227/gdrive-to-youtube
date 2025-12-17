@@ -1,49 +1,19 @@
 // src/workers/syncDrive.ts
 import dotenv from 'dotenv';
-import { google, drive_v3 } from 'googleapis';
+import { drive_v3 } from 'googleapis';
 import prisma from '../prismaClient';
-import { getServiceAccountAuth } from '../utils/serviceAccountAuth';
+import { DriveConnectionStatus } from '@prisma/client';
+import { refreshConnectionIfNeeded, markDriveConnectionStatus } from '../utils/driveConnectionClient';
 
 dotenv.config();
+
+const PAGE_SIZE = 100;
+const DEFAULT_MIME_TYPE = 'application/octet-stream';
+const folderPathCache = new Map<string, string>();
 
 interface SyncStats {
   upserted: number;
   markedMissing: number;
-}
-
-const DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
-const PAGE_SIZE = 100;
-const DEFAULT_MIME_TYPE = 'application/octet-stream';
-
-// Cache for folder paths to avoid repeated Drive lookups
-const folderPathCache = new Map<string, string>();
-
-/**
- * Validates and retrieves required environment variables
- */
-export interface DriveConfig {
-  folderId: string;
-}
-
-function getConfig(): DriveConfig {
-  const folderId = process.env.DRIVE_FOLDER_ID;
-
-  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS || !folderId) {
-    throw new Error(
-      'Missing required environment variables: GOOGLE_APPLICATION_CREDENTIALS and/or DRIVE_FOLDER_ID'
-    );
-  }
-
-  return { folderId };
-}
-
-/**
- * Initializes Google Drive API client
- */
-function initializeDriveClient(): drive_v3.Drive {
-  const auth = getServiceAccountAuth(DRIVE_SCOPES);
-
-  return google.drive({ version: 'v3', auth });
 }
 
 /**
@@ -150,7 +120,8 @@ async function getFolderPath(
  */
 async function upsertFile(
   file: drive_v3.Schema$File,
-  folderPath: string | null
+  folderPath: string | null,
+  driveConnectionId: string
 ): Promise<void> {
   if (!file.id) return;
 
@@ -162,6 +133,7 @@ async function upsertFile(
     folderPath,
     webViewLink: file.webViewLink || null,
     webContentLink: file.webContentLink || null,
+    driveConnectionId,
     status: 'ACTIVE' as const,
   };
 
@@ -184,7 +156,7 @@ async function upsertFile(
  * - have a non-null folderPath (i.e. created by this sync)
  * - have driveFileId not in the latest seenIds
  */
-async function markMissingFiles(seenIds: Set<string>): Promise<number> {
+async function markMissingFiles(seenIds: Set<string>, driveConnectionId: string): Promise<number> {
   // Defensive: if Drive returned nothing, don't nuke everything.
   if (seenIds.size === 0) {
     console.warn(
@@ -199,6 +171,7 @@ async function markMissingFiles(seenIds: Set<string>): Promise<number> {
     where: {
       status: 'ACTIVE',
       folderPath: { not: null },      // only items managed by this sync
+      driveConnectionId,
       driveFileId: { notIn: seenIdsArray },
     },
     data: {
@@ -214,40 +187,65 @@ async function markMissingFiles(seenIds: Set<string>): Promise<number> {
  * Syncs files from Google Drive to the database
  */
 export async function syncDrive(): Promise<SyncStats> {
-  const config = getConfig();
-  console.log('Syncing files from Drive folder:', config.folderId);
+  const connections = await prisma.driveConnection.findMany({
+    where: { status: DriveConnectionStatus.ACTIVE },
+  });
 
-  const drive = initializeDriveClient();
-  const seenIds = new Set<string>();
+  let totalUpserted = 0;
+  let totalMissing = 0;
 
   try {
-    // Fetch all files (recursively) from Drive root folder
-    const files = await fetchAllDescendantFiles(drive, config.folderId);
+    for (const connection of connections) {
+      console.log('Syncing files from Drive connection:', connection.id, connection.rootFolderId);
+      const seenIds = new Set<string>();
+      const folderCacheForConnection = new Map<string, string>();
 
-    // Upsert each file to database
-    for (const file of files) {
-      if (!file.id) continue;
+      try {
+        const { drive } = await refreshConnectionIfNeeded(connection);
 
-      seenIds.add(file.id);
+        // reset shared cache per connection
+        folderPathCache.clear();
+        for (const [k, v] of folderCacheForConnection.entries()) {
+          folderPathCache.set(k, v);
+        }
 
-      const parentId = file.parents?.[0] ?? null;
-      const folderPath = await getFolderPath(drive, parentId, config.folderId);
+        const files = await fetchAllDescendantFiles(drive, connection.rootFolderId);
 
-      await upsertFile(file, folderPath);
+        for (const file of files) {
+          if (!file.id) continue;
+
+          seenIds.add(file.id);
+
+          const parentId = file.parents?.[0] ?? null;
+          const folderPath = await getFolderPath(drive, parentId, connection.rootFolderId);
+
+          if (folderPath) {
+            folderCacheForConnection.set(parentId ?? '', folderPath);
+          }
+
+          await upsertFile(file, folderPath, connection.id);
+        }
+
+        const markedMissing = await markMissingFiles(seenIds, connection.id);
+        totalUpserted += seenIds.size;
+        totalMissing += markedMissing;
+        console.log(
+          `Sync complete for connection ${connection.id}. Upserted ${seenIds.size} file(s); marked ${markedMissing} missing.`
+        );
+      } catch (err) {
+        console.error(`Error during Drive sync for connection ${connection.id}:`, err);
+        await markDriveConnectionStatus(
+          connection.id,
+          DriveConnectionStatus.ERROR,
+          String(err)
+        );
+      }
     }
 
-    // Mark files that are no longer in Drive as MISSING
-    const markedMissing = await markMissingFiles(seenIds);
-
-    const stats: SyncStats = {
-      upserted: seenIds.size,
-      markedMissing,
+    return {
+      upserted: totalUpserted,
+      markedMissing: totalMissing,
     };
-
-    console.log(`Sync complete. Upserted ${stats.upserted} file(s) to MediaItem.`);
-    console.log(`Marked ${stats.markedMissing} file(s) as MISSING.`);
-
-    return stats;
   } catch (error) {
     console.error('Error during Drive sync:', error);
     throw error;

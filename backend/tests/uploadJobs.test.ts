@@ -52,6 +52,7 @@ describe('Upload Jobs routes', () => {
         requestedByUserId: 1,
         youtubeVideoId: null,
         thumbnailMediaItemId: null,
+        driveConnectionId: null,
         title: 'Test Video',
         description: 'Test description',
         tags: null,

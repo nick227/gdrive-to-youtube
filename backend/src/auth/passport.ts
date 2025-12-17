@@ -25,6 +25,7 @@ if (clientId && clientSecret) {
           const googleSub = profile.id;
           const email = profile.emails?.[0]?.value;
           const name = profile.displayName;
+          const avatarUrl = profile.photos?.[0]?.value || null;
 
           if (!email) {
             return done(new Error('No email found in Google profile'));
@@ -37,10 +38,12 @@ if (clientId && clientSecret) {
               googleSub,
               email,
               name,
+              avatarUrl,
             },
             update: {
               email,
               name,
+              avatarUrl,
             },
           });
 

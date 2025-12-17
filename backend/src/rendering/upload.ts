@@ -1,6 +1,6 @@
 import fs from 'fs';
-import path from 'path';
-import { getDriveServiceClient, getDriveWriteClient } from './driveClients';
+import { DriveConnectionStatus } from '@prisma/client';
+import { getDriveClientById, markDriveConnectionStatus } from '../utils/driveConnectionClient';
 
 function sanitizeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9-_]+/g, '_').replace(/^_+|_+$/g, '');
@@ -10,17 +10,16 @@ function getTimestampString(date = new Date()): string {
   return date.toISOString().replace(/:/g, '-').replace(/\./g, '-');
 }
 
-export async function uploadMp4ToDrive(
-  localPath: string,
-  baseName: string
-): Promise<{ id: string; name: string }> {
-  const outputFolderId = process.env.DRIVE_FOLDER_ID;
-  if (!outputFolderId) {
-    throw new Error('DRIVE_FOLDER_ID is not set');
-  }
+export async function uploadMp4ToDrive(params: {
+  driveConnectionId: string;
+  localPath: string;
+  baseName: string;
+  folderPath?: string;
+}): Promise<{ id: string; name: string; driveConnectionId: string }> {
+  const { driveConnectionId, localPath, baseName } = params;
 
-  // Use user OAuth for uploads (service accounts cannot write to My Drive).
-  const drive = getDriveWriteClient();
+  const { drive, connection } = await getDriveClientById(driveConnectionId);
+  const outputFolderId = connection.rootFolderId;
 
   const timestamp = getTimestampString();
   const sanitizedBase = sanitizeFileName(baseName) || 'rendered_video';
@@ -49,14 +48,20 @@ export async function uploadMp4ToDrive(
       fields: 'id,name,parents,driveId',
     });
   } catch (err) {
-    // Bubble a clearer error when tokens are expired/revoked.
     const message =
       err && typeof err === 'object' && 'message' in err
         ? String((err as { message: string }).message)
         : String(err);
-    throw new Error(
-      `[upload] Drive upload failed (check DRIVE_OAUTH_TOKENS): ${message}`
-    );
+
+    const status =
+      (err as { response?: { status?: number; data?: { error?: string } } }).response?.data
+        ?.error === 'invalid_grant' ||
+      (err as { response?: { status?: number } }).response?.status === 401
+        ? DriveConnectionStatus.REVOKED
+        : DriveConnectionStatus.ERROR;
+    await markDriveConnectionStatus(driveConnectionId, status, message);
+
+    throw new Error(`[upload] Drive upload failed: ${message}`);
   }
 
   const id = res.data.id;
@@ -67,5 +72,5 @@ export async function uploadMp4ToDrive(
   }
 
   console.log(`[upload] Uploaded: id=${id}, name=${name}`);
-  return { id, name };
+  return { id, name, driveConnectionId };
 }

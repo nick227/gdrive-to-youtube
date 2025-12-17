@@ -5,7 +5,6 @@ import type { MediaItem } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 import { parseRenderSpec, RenderSpec } from '../rendering/renderSpec';
-import { getDriveReadClient } from '../rendering/driveClients';
 import { downloadMediaBatch } from '../rendering/download';
 import {
   buildSlideshowFrames,
@@ -19,6 +18,8 @@ import {
   RenderJobWithRelations,
   resolveRenderMedia,
 } from '../rendering/mediaResolver';
+import { getDriveClientById } from '../utils/driveConnectionClient';
+import { DriveConnectionStatus } from '@prisma/client';
 
 dotenv.config();
 
@@ -113,7 +114,6 @@ export async function processRenderJob(
     `Processing render job ${job.id} (mode=${spec?.mode ?? 'legacy'}): audio="${job.audioMediaItem.name}" image="${job.imageMediaItem?.name ?? 'none'}"`
   );
 
-  const driveRead = getDriveReadClient();
   const tempFiles: string[] = [];
 
   try {
@@ -124,9 +124,41 @@ export async function processRenderJob(
 
     const { spec: resolvedSpec, audioItems, imageItems } = await resolveRenderMedia(job, spec);
 
-    // 1. Download assets based on renderSpec (or legacy fields)
-    const audioPaths = await downloadMediaBatch(driveRead, audioItems, 'audio', tempFiles);
-    const imagePaths = await downloadMediaBatch(driveRead, imageItems, 'image', tempFiles);
+    // 1. Resolve drive connection for this job
+    const connectionIdCandidates = new Set<string>();
+    if (job.driveConnectionId) connectionIdCandidates.add(job.driveConnectionId);
+    for (const item of [...audioItems, ...imageItems]) {
+      if (item?.driveConnectionId) connectionIdCandidates.add(item.driveConnectionId);
+    }
+
+    let driveConnectionId: string | null = null;
+    if (connectionIdCandidates.size === 1) {
+      driveConnectionId = Array.from(connectionIdCandidates)[0]!;
+    } else if (connectionIdCandidates.size > 1) {
+      throw new Error('Mixed drive connections detected across media items; expected one');
+    } else {
+      const fallback = await prisma.driveConnection.findFirst({
+        where: { status: DriveConnectionStatus.ACTIVE },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!fallback) {
+        throw new Error('No active Drive connection available; please connect Google Drive');
+      }
+      driveConnectionId = fallback.id;
+    }
+
+    const { drive, connection } = await getDriveClientById(driveConnectionId);
+
+    // Backfill job with the resolved connection for future runs
+    if (!job.driveConnectionId && driveConnectionId) {
+      await prisma.renderJob.update({
+        where: { id: job.id },
+        data: { driveConnectionId },
+      });
+    }
+
+    const audioPaths = await downloadMediaBatch(drive, audioItems, 'audio', tempFiles);
+    const imagePaths = await downloadMediaBatch(drive, imageItems, 'image', tempFiles);
 
     // 2. Render into MP4
     const { outputPath, baseName } = await renderFromSpec(
@@ -140,7 +172,11 @@ export async function processRenderJob(
     );
 
     // 3. Upload MP4 to Drive (OAuth user)
-    const uploadInfo = await uploadMp4ToDrive(outputPath, baseName);
+    const uploadInfo = await uploadMp4ToDrive({
+      driveConnectionId,
+      localPath: outputPath,
+      baseName,
+    });
 
     // 4. Create MediaItem for the MP4
     console.log(
@@ -153,6 +189,7 @@ export async function processRenderJob(
         name: uploadInfo.name,
         mimeType: 'video/mp4',
         status: 'ACTIVE',
+        driveConnectionId: connection.id,
       },
     });
 

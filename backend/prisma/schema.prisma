@@ -14,15 +14,56 @@ model User {
   googleSub String   @unique
   email     String   @unique
   name      String?
+  avatarUrl String?  @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  driveConnections   DriveConnection[]
   youtubeChannelLinks YoutubeChannelLink[]
   uploadJobs          UploadJob[]
   renderJobs          RenderJob[]
 
   @@index([email])
   @@index([googleSub])
+}
+
+model DriveConnection {
+  id                String   @id @default(cuid())
+  userId            Int
+  user              User     @relation(fields: [userId], references: [id])
+
+  driveAccountEmail String
+  scopes            String   @db.Text
+  status            DriveConnectionStatus @default(ACTIVE)
+  lastError         String?  @db.Text
+
+  rootFolderId      String
+  rootFolderName    String
+  rootFolderLink    String   @db.Text
+
+  accessToken       String?  @db.Text
+  refreshToken      String?  @db.Text
+  tokenExpiresAt    DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  MediaItems        MediaItem[]
+  RenderJobs        RenderJob[]
+  UploadJobs        UploadJob[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model DriveConsentState {
+  state             String   @id
+  userId            Int
+  nonce             String
+  redirectAfter     String?  @db.Text
+  requestedFolderId String?
+  createdAt         DateTime @default(now())
+  expiresAt         DateTime
 }
 
 model YoutubeChannel {
@@ -70,6 +111,9 @@ model MediaItem {
   webViewLink    String?  @db.Text
   webContentLink String?  @db.Text
 
+  driveConnectionId String?
+  driveConnection   DriveConnection? @relation(fields: [driveConnectionId], references: [id], onDelete: SetNull)
+
   status         MediaStatus @default(ACTIVE)
 
   createdAt      DateTime  @default(now())
@@ -82,6 +126,8 @@ model MediaItem {
   outputRenderJobs      RenderJob[]   @relation("OutputMediaItem")
   thumbnailUploadJobs   UploadJob[]   @relation("ThumbnailMediaItem")
   videoThumbnails       YoutubeVideo[] @relation("VideoThumbnailMediaItem")
+
+  @@index([driveConnectionId])
 }
 
 model YoutubeVideo {
@@ -132,6 +178,9 @@ model UploadJob {
   thumbnailMediaItemId Int?
   thumbnailMediaItem   MediaItem?    @relation("ThumbnailMediaItem", fields: [thumbnailMediaItemId], references: [id], onDelete: SetNull)
 
+  driveConnectionId  String?
+  driveConnection    DriveConnection? @relation(fields: [driveConnectionId], references: [id], onDelete: SetNull)
+
   title               String
   description         String         @db.Text
   tags                String?        @db.Text
@@ -149,6 +198,7 @@ model UploadJob {
   @@index([requestedByUserId])
   @@index([youtubeVideoId])
   @@index([thumbnailMediaItemId])
+  @@index([driveConnectionId])
   @@index([status, scheduledFor])
 }
 
@@ -168,6 +218,9 @@ model RenderJob {
   requestedByUserId Int?
   requestedByUser   User?     @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
+  driveConnectionId String?
+  driveConnection   DriveConnection? @relation(fields: [driveConnectionId], references: [id], onDelete: SetNull)
+
   waveformConfig   String?   @db.Text
 
   status           JobStatus @default(PENDING)
@@ -180,6 +233,7 @@ model RenderJob {
   @@index([imageMediaItemId])
   @@index([outputMediaItemId])
   @@index([requestedByUserId])
+  @@index([driveConnectionId])
   @@index([status])
 }
 
@@ -205,4 +259,10 @@ enum PrivacyStatus {
   PUBLIC
   UNLISTED
   PRIVATE
+}
+
+enum DriveConnectionStatus {
+  ACTIVE
+  ERROR
+  REVOKED
 }

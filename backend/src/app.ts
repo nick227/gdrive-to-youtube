@@ -17,6 +17,7 @@ import renderJobRoutes from "./routes/renderJobs";
 import youtubeVideoRoutes from "./routes/youtubeVideos";
 import youtubeChannelRoutes from "./routes/youtubeChannels";
 import mediaPreviewRoutes from "./routes/media-preview";
+import driveRoutes from "./routes/drive";
 import prisma from "./prismaClient";
 import { validateEnv } from "./config/validateEnv";
 
@@ -38,6 +39,7 @@ const API_PREFIXES = [
   "/videos",
   "/channels",
   "/media-preview",
+  "/drive",
   "/upload-jobs",
   "/render-jobs",
   "/health",
@@ -237,6 +239,7 @@ app.use("/media", mediaRoutes);
 app.use("/videos", youtubeVideoRoutes);
 app.use("/channels", youtubeChannelRoutes);
 app.use("/media-preview", mediaPreviewRoutes);
+app.use("/drive", requireAuth, driveRoutes);
 
 // Protected routes requiring authentication
 app.use("/upload-jobs", requireAuth, uploadJobRoutes);

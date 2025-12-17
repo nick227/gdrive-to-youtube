@@ -22,7 +22,7 @@ function ArrowRight() {
 
 export function MonthHeader({ label, onPrev, onNext }: Props) {
   return (
-    <div className="flex items-center justify-between mb-4 w-[640px]">
+    <div className="flex items-center justify-between mb-4 w-full">
       <button
         aria-label="Previous month"
         onClick={onPrev}

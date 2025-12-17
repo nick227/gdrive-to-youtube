@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { Suspense, useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMediaDashboard } from '../hooks/useMediaDashboard';
 import MediaTable from '../components/MediaTable';
@@ -12,6 +12,8 @@ import { MediaItem } from '../types/api';
 import { API_URL } from '../config/api';
 import { ScheduleItem } from '../components/schedule/types'
 import { UploadJob } from '../types/api'
+import { useRouter, useSearchParams } from 'next/navigation';
+import { GoogleDriveWidget } from '../components/GoogleDriveWidget';
 
 function mapUploadJobsToScheduleItems(
   jobs: UploadJob[]
@@ -34,19 +36,24 @@ function mapUploadJobsToScheduleItems(
 }
 
 const HISTORY_STORAGE_KEY = 'historyOpen';
+const SCHEDULE_STORAGE_KEY = 'scheduleOpen';
 
-export default function Page() {
+function PageContent() {
   const { user, loading: authLoading, login, logout } = useAuth();
   const { media, uploadJobs, renderJobs, channels, loading, error, reload } = useMediaDashboard();
   const [selectedMediaItem, setSelectedMediaItem] = useState<MediaItem | null>(null);
   const [quickUploadOpen, setQuickUploadOpen] = useState(false);
   const [createVideoOpen, setCreateVideoOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(true);
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const scheduleItems = useMemo(
-  () => mapUploadJobsToScheduleItems(uploadJobs),
-  [uploadJobs]
-)
+    () => mapUploadJobsToScheduleItems(uploadJobs),
+    [uploadJobs]
+  )
 
   const imageItems = useMemo(
     () => media.filter((m) => m.mimeType.startsWith('image/')),
@@ -62,11 +69,29 @@ export default function Page() {
     }
   }, []);
 
+  // Hydrate schedule toggle from localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = window.localStorage.getItem(SCHEDULE_STORAGE_KEY);
+    if (raw === 'true' || raw === 'false') {
+      setScheduleOpen(raw === 'true');
+    }
+  }, []);
+
   // Persist history toggle to localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(HISTORY_STORAGE_KEY, historyOpen ? 'true' : 'false');
   }, [historyOpen]);
+
+  // Show success after redirect from Drive OAuth
+  useEffect(() => {
+    const fromDrive = searchParams?.get('driveConnectionId');
+    if (fromDrive) {
+      void router.replace('/');
+      void reload();
+    }
+  }, [searchParams, reload, router]);
 
   const handleCancelJob = useCallback(async (jobId: number) => {
     try {
@@ -125,6 +150,10 @@ export default function Page() {
     [requireAuthThen]
   );
 
+  const toggleSchedule = useCallback(() => {
+    setScheduleOpen((prev) => !prev);
+  }, []);
+
   const toggleHistory = useCallback(() => {
     setHistoryOpen((prev) => !prev);
   }, []);
@@ -157,23 +186,23 @@ export default function Page() {
         <div className='flex flex-nowrap toolbar'>
           <div>
             {user && (
-                <a
-                  className="btn-link"
-                  href={`${API_URL}/channels/auth-url?userId=${user.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >Linked Accounts</a>
+              <a
+                className="btn-link"
+                href={`${API_URL}/channels/auth-url?userId=${user.id}`}
+                target="_blank"
+                rel="noreferrer"
+              >Linked Accounts</a>
             )}
-              {user && channels && (
-                <>
-                  {channels.map((channel) => (
-                    <span className='p-2 mx-2 bg-amber-50' key={channel.id}>
-                      {channel.title ?? channel.channelId}
-                    </span>
-                  ))}
-                </>
-              )}
-          </div>  
+            {user && channels && (
+              <>
+                {channels.map((channel) => (
+                  <span className='p-2 mx-2 bg-amber-50' key={channel.id}>
+                    {channel.title ?? channel.channelId}
+                  </span>
+                ))}
+              </>
+            )}
+          </div>
           {user ? (
             <>
               <button className="btn btn-secondary" onClick={logout}>
@@ -200,30 +229,46 @@ export default function Page() {
         </div>
       )}
 
-<div className='flex w-full justify-between'>
+      <div className='flex justify-between'>
+
+        {user && (
+          <div className="history-panel">
+            <PendingJobsList
+              uploadJobs={uploadJobs}
+              renderJobs={renderJobs}
+              onRefresh={reload}
+              onToggle={toggleHistory}
+              isOpen={historyOpen}
+              loading={loading}
+            />
+          </div>
+        )}
+
+      </div>
+
       {user && (
-        <div className="history-panel">
-          <PendingJobsList
-            uploadJobs={uploadJobs}
-            renderJobs={renderJobs}
-            onRefresh={reload}
-            onToggle={toggleHistory}
-            isOpen={historyOpen}
-            loading={loading}
-          />
-        </div>
+        <>
+          <div className='flex justify-between py-4 my-4 section rounded bg-slate-50 p-3'>
+            <h3 className='section-title m-0'>Schedule</h3>
+            <i className={`fa-solid fa-chevron-${scheduleOpen ? 'up' : 'down'}`} onClick={toggleSchedule} />
+          </div>
+            {scheduleOpen && (
+              <div className="pb-4 mb-8">
+                <ScheduleView items={scheduleItems} />
+              </div>
+            )}
+        </>
       )}
 
       {user && (
-        <div className="section-schedule">
-          <ScheduleView
-            items={scheduleItems}
-          />
-        </div>
-      )}
-</div>
-      {user && (
         <section className="section">
+          <GoogleDriveWidget
+            userId={user?.id ?? null}
+            onRequireAuth={login}
+            onReload={reload}
+            driveConnectionIdFromQuery={searchParams?.get('driveConnectionId')}
+          />
+
           <MediaTable
             media={media}
             uploadJobs={uploadJobs}
@@ -271,5 +316,13 @@ export default function Page() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<main className="page-container"><p>Loading...</p></main>}>
+      <PageContent />
+    </Suspense>
   );
 }

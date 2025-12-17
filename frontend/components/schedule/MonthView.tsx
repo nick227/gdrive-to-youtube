@@ -13,11 +13,11 @@ interface Props {
 export function MonthView({ monthKey, startDay, daysInMonth, itemsByDay, onOpenDay }: Props) {
   return (
     <>
-      <div className="grid grid-cols-7 text-xs text-neutral-500 mb-2 w-[640px]">
+      <div className="grid grid-cols-7 text-xs text-neutral-500 mb-2 w-full">
         {DAYS.map(d => <div key={d}>{d}</div>)}
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-neutral-200 w-[640px]">
+      <div className="grid grid-cols-7 gap-px bg-neutral-200 w-full">
         {Array.from({ length: startDay }).map((_, i) => (
           <div key={i} className="bg-white h-16" />
         ))}

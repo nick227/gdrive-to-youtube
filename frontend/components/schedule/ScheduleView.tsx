@@ -7,7 +7,7 @@ import { ScheduleItem } from './types'
 type ViewMode = 'month' | 'day'
 
 interface Props {
-  items: ScheduleItem[]
+  items: ScheduleItem[];
 }
 
 export default function ScheduleView({ items }: Props) {

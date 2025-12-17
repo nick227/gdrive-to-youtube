@@ -27,7 +27,6 @@ const SORTABLE_COLUMNS: { key: SortKey; label: string }[] = [
   { key: 'createdAt', label: 'Created' },
   { key: 'mimeType', label: 'Type' },
   { key: 'size', label: 'Size' },
-  { key: 'status', label: 'Status' },
   { key: 'state', label: 'State' },
 ];
 

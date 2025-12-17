@@ -184,7 +184,7 @@ function PageContent() {
       <div className="section-header">
         <h1 className="page-title">Youtube Upload Manager</h1>
         <div className='flex flex-nowrap toolbar'>
-          <div>
+          <div className="flex items-center gap-3">
             {user && (
               <a
                 className="btn-link"
@@ -203,13 +203,20 @@ function PageContent() {
               </>
             )}
           </div>
-          {user ? (
-            <>
-              <button className="btn btn-secondary" onClick={logout}>
-                Logout
-              </button>
-            </>
-          ) : (
+            {user ? (
+              <>
+                {user.avatarUrl && (
+                  <img
+                    className="user-avatar"
+                    src={user.avatarUrl}
+                    alt={user.name ?? user.email}
+                  />
+                )}
+                <button className="btn btn-secondary" onClick={logout}>
+                  Logout
+                </button>
+              </>
+            ) : (
             <button className="btn btn-login" onClick={login}>
               Sign in with Google
             </button>

@@ -3,7 +3,9 @@ import dotenv from 'dotenv';
 import prisma from '../prismaClient';
 import type { MediaItem } from '@prisma/client';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+import fsPromises from 'fs/promises';
 import { parseRenderSpec, RenderSpec } from '../rendering/renderSpec';
 import { downloadMediaBatch } from '../rendering/download';
 import {
@@ -51,6 +53,9 @@ async function renderFromSpec(
   const tmpDir = path.dirname(audioPaths[0]);
   const mergedAudioPath = await concatAudios(audioPaths, tmpDir, tempFiles);
   const totalAudioSeconds = await getAudioDurationSeconds(mergedAudioPath);
+  if (!totalAudioSeconds || Number.isNaN(totalAudioSeconds)) {
+    throw new Error('Audio duration is invalid or zero');
+  }
 
   const outputPath = path.join(tmpDir, `rendered-${jobId}.mp4`);
   tempFiles.push(outputPath);
@@ -85,7 +90,9 @@ async function renderFromSpec(
     const slideshowVideo = await createSlideshowVideo(frames, tmpDir, tempFiles);
     await muxAudioAndVideo(slideshowVideo, mergedAudioPath, outputPath);
 
-    const baseName = spec?.outputFileName || audioItems[0]?.name || 'rendered_video';
+    const baseName =
+      spec?.outputFileName ||
+      (audioItems.length > 0 ? audioItems[0].name : 'rendered_video');
     return { outputPath, baseName };
   }
 
@@ -115,13 +122,11 @@ export async function processRenderJob(
   );
 
   const tempFiles: string[] = [];
+  const tempDirs = new Set<string>();
+  const jobTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'render-job-'));
+  tempDirs.add(jobTempDir);
 
   try {
-    await prisma.renderJob.update({
-      where: { id: job.id },
-      data: { status: 'RUNNING' },
-    });
-
     const { spec: resolvedSpec, audioItems, imageItems } = await resolveRenderMedia(job, spec);
 
     // 1. Resolve drive connection for this job
@@ -131,23 +136,25 @@ export async function processRenderJob(
       if (item?.driveConnectionId) connectionIdCandidates.add(item.driveConnectionId);
     }
 
-    let driveConnectionId: string | null = null;
-    if (connectionIdCandidates.size === 1) {
-      driveConnectionId = Array.from(connectionIdCandidates)[0]!;
-    } else if (connectionIdCandidates.size > 1) {
-      throw new Error('Mixed drive connections detected across media items; expected one');
-    } else {
-      const fallback = await prisma.driveConnection.findFirst({
-        where: { status: DriveConnectionStatus.ACTIVE },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (!fallback) {
-        throw new Error('No active Drive connection available; please connect Google Drive');
-      }
-      driveConnectionId = fallback.id;
+    if (connectionIdCandidates.size === 0) {
+      throw new Error('driveConnectionId is required (no Drive connection on job or media)');
     }
+    if (connectionIdCandidates.size > 1) {
+      throw new Error('Mixed drive connections detected across media items; expected one');
+    }
+    const driveConnectionId = Array.from(connectionIdCandidates)[0]!;
 
     const { drive, connection } = await getDriveClientById(driveConnectionId);
+
+    // Mark RUNNING only if still pending/failed (after validation)
+    const updated = await prisma.renderJob.updateMany({
+      where: { id: job.id, status: { in: ['PENDING', 'FAILED'] } },
+      data: { status: 'RUNNING', errorMessage: null },
+    });
+    if (updated.count === 0) {
+      console.log(`Job ${job.id} not eligible to run (status changed), skipping.`);
+      return;
+    }
 
     // Backfill job with the resolved connection for future runs
     if (!job.driveConnectionId && driveConnectionId) {
@@ -157,8 +164,20 @@ export async function processRenderJob(
       });
     }
 
-    const audioPaths = await downloadMediaBatch(drive, audioItems, 'audio', tempFiles);
-    const imagePaths = await downloadMediaBatch(drive, imageItems, 'image', tempFiles);
+    const audioPaths = await downloadMediaBatch(
+      drive,
+      audioItems,
+      'audio',
+      tempFiles,
+      jobTempDir
+    );
+    const imagePaths = await downloadMediaBatch(
+      drive,
+      imageItems,
+      'image',
+      tempFiles,
+      jobTempDir
+    );
 
     // 2. Render into MP4
     const { outputPath, baseName } = await renderFromSpec(
@@ -183,28 +202,44 @@ export async function processRenderJob(
       `[mediaItem] Creating MediaItem for uploaded MP4 (Drive id=${uploadInfo.id})`
     );
 
-    const videoMediaItem = await prisma.mediaItem.create({
-      data: {
-        driveFileId: uploadInfo.id,
-        name: uploadInfo.name,
-        mimeType: 'video/mp4',
-        status: 'ACTIVE',
-        driveConnectionId: connection.id,
-      },
+    // 4. Create MediaItem and mark job success in a transaction, avoid duplicate outputs
+    const videoMediaItem = await prisma.$transaction(async (tx) => {
+      // If job already has an output, return it (idempotency guard)
+      const existing = await tx.renderJob.findUnique({
+        where: { id: job.id },
+        select: { outputMediaItemId: true },
+      });
+      if (existing?.outputMediaItemId) {
+        const existingItem = await tx.mediaItem.findUnique({
+          where: { id: existing.outputMediaItemId },
+        });
+        if (existingItem) return existingItem;
+      }
+
+      const created = await tx.mediaItem.create({
+        data: {
+          driveFileId: uploadInfo.id,
+          name: uploadInfo.name,
+          mimeType: 'video/mp4',
+          status: 'ACTIVE',
+          driveConnectionId: connection.id,
+        },
+      });
+
+      await tx.renderJob.update({
+        where: { id: job.id },
+        data: {
+          outputMediaItemId: created.id,
+          status: 'SUCCESS',
+        },
+      });
+
+      return created;
     });
 
     console.log(
       `[mediaItem] Created MediaItem ${videoMediaItem.id} for render job ${job.id}`
     );
-
-    // 5. Link output to render job and mark success
-    await prisma.renderJob.update({
-      where: { id: job.id },
-      data: {
-        outputMediaItemId: videoMediaItem.id,
-        status: 'SUCCESS',
-      },
-    });
 
     console.log(`Render job ${job.id} completed successfully`);
   } catch (error) {
@@ -219,25 +254,28 @@ export async function processRenderJob(
       },
     });
   } finally {
-    // Cleanup temp files
-    const tempDirs = new Set<string>();
-    for (const filePath of tempFiles) {
-      try {
-        if (fs.existsSync(filePath)) {
+    // Cleanup temp files/dirs (best-effort, async)
+    await Promise.all(
+      tempFiles.map(async (filePath) => {
+        try {
+          await fsPromises.rm(filePath, { force: true });
           tempDirs.add(path.dirname(filePath));
-          fs.unlinkSync(filePath);
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+            console.warn(`Failed to clean up temp file "${filePath}":`, err);
+          }
         }
-      } catch (err) {
-        console.warn(`Failed to clean up temp file "${filePath}":`, err);
-      }
-    }
-    for (const dir of tempDirs) {
-      try {
-        fs.rmdirSync(dir);
-      } catch {
-        // ignore if not empty
-      }
-    }
+      })
+    );
+    await Promise.all(
+      Array.from(tempDirs).map(async (dir) => {
+        try {
+          await fsPromises.rm(dir, { recursive: true, force: true });
+        } catch (err) {
+          console.warn(`Failed to remove temp dir "${dir}":`, err);
+        }
+      })
+    );
   }
 }
 
@@ -246,12 +284,29 @@ export async function processRenderJob(
 async function main(): Promise<void> {
   console.log('Processing render jobs...');
 
+  // Reset stale RUNNING jobs (older than 30 minutes) to FAILED
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+  const reset = await prisma.renderJob.updateMany({
+    where: {
+      status: 'RUNNING',
+      updatedAt: { lt: thirtyMinutesAgo },
+    },
+    data: {
+      status: 'FAILED',
+      errorMessage: 'Marked failed due to staleness',
+    },
+  });
+  if (reset.count > 0) {
+    console.log(`Reset ${reset.count} stale RUNNING render job(s) to FAILED.`);
+  }
+
   const jobs = await prisma.renderJob.findMany({
     where: { status: 'PENDING' },
     include: {
       audioMediaItem: true,
       imageMediaItem: true,
     },
+    orderBy: { createdAt: 'asc' },
     take: 10,
   });
 

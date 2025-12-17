@@ -11,7 +11,8 @@ const streamPipeline = promisify(pipeline);
 export async function downloadDriveFileToTemp(
   drive: drive_v3.Drive,
   fileId: string,
-  label: string
+  label: string,
+  baseDir?: string
 ): Promise<string> {
   console.log(`[${label}] Downloading Drive file ${fileId}...`);
 
@@ -20,7 +21,9 @@ export async function downloadDriveFileToTemp(
     { responseType: 'stream' }
   );
 
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'render-job-'));
+  const tmpDir = baseDir
+    ? baseDir
+    : fs.mkdtempSync(path.join(os.tmpdir(), 'render-job-'));
   const outPath = path.join(tmpDir, `${label}-${fileId}.bin`);
 
   const readStream = res.data as unknown as NodeJS.ReadableStream;
@@ -43,12 +46,18 @@ export async function downloadMediaBatch(
   driveRead: drive_v3.Drive,
   items: MediaItem[],
   labelPrefix: string,
-  tempFiles: string[]
+  tempFiles: string[],
+  baseDir?: string
 ): Promise<string[]> {
   const paths: string[] = [];
   for (const item of items) {
     const driveId = ensureDriveFileId(item, labelPrefix);
-    const pathOnDisk = await downloadDriveFileToTemp(driveRead, driveId, `${labelPrefix}-${item.id}`);
+    const pathOnDisk = await downloadDriveFileToTemp(
+      driveRead,
+      driveId,
+      `${labelPrefix}-${item.id}`,
+      baseDir
+    );
     tempFiles.push(pathOnDisk);
     paths.push(pathOnDisk);
   }

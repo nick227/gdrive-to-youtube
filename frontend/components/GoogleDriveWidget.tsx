@@ -1,11 +1,11 @@
-  import {
-    useEffect,
-    useState,
-    useCallback,
-    useMemo,
-    useRef,
-  } from 'react';
-  import { API_URL } from '../config/api';
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
+import { API_URL } from '../config/api';
 
   type DriveConnection = {
     id: string;
@@ -19,11 +19,11 @@
     name: string | null;
   };
 
-  type Props = {
-    userId: number | null;
-    onRequireAuth: () => void;
-    onReload: () => void;
-    driveConnectionIdFromQuery?: string | null;
+type Props = {
+  userId: number | null;
+  onRequireAuth: () => void;
+  onReload: () => void;
+  driveConnectionIdFromQuery?: string | null;
   };
 
   type FetchError =
@@ -32,17 +32,17 @@
     | 'network'
     | 'unknown';
 
-  function extractFolderId(input: string): string | null {
-    const trimmed = input.trim();
+function extractFolderId(input: string): string | null {
+  const trimmed = input.trim();
 
-    const urlMatch = trimmed.match(/\/folders\/([a-zA-Z0-9_-]{10,})/);
-    if (urlMatch) return urlMatch[1];
+  const urlMatch = trimmed.match(/\/folders\/([a-zA-Z0-9_-]{16,})/);
+  if (urlMatch) return urlMatch[1];
 
-    const idMatch = trimmed.match(/^[a-zA-Z0-9_-]{10,}$/);
-    if (idMatch) return trimmed;
+  const idMatch = trimmed.match(/^[a-zA-Z0-9_-]{16,}$/);
+  if (idMatch) return trimmed;
 
-    return null;
-  }
+  return null;
+}
 
   function mapFetchError(status?: number): FetchError {
     if (!status) return 'network';
@@ -57,33 +57,39 @@
     onReload,
     driveConnectionIdFromQuery,
   }: Props) {
-    const [driveConnections, setDriveConnections] = useState<DriveConnection[]>([]);
-    const [sharingUsers, setSharingUsers] = useState<UserInfo[]>([]);
-    const [driveFolderInput, setDriveFolderInput] = useState('');
-    const [error, setError] = useState<string | null>(null);
+  const [driveConnections, setDriveConnections] = useState<DriveConnection[]>([]);
+  const [sharingUsers, setSharingUsers] = useState<UserInfo[]>([]);
+  const [driveFolderInput, setDriveFolderInput] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [shareWarning, setShareWarning] = useState<string | null>(null);
 
-    const [submitting, setSubmitting] = useState(false);
-    const [initialLoading, setInitialLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(false);
 
-    const abortRef = useRef<AbortController | null>(null);
+  const connectionAbortRef = useRef<AbortController | null>(null);
+  const shareAbortRef = useRef<AbortController | null>(null);
 
-    const activeConnection = useMemo(
-      () => driveConnections.find((c) => c.id === (driveConnectionIdFromQuery || driveConnections[0]?.id)) ?? null,
-      [driveConnections, driveConnectionIdFromQuery]
-    );
+  const activeConnection = useMemo(() => {
+    if (driveConnections.length === 0) return null;
+    if (driveConnectionIdFromQuery) {
+      const match = driveConnections.find((c) => c.id === driveConnectionIdFromQuery);
+      if (match) return match;
+    }
+    return driveConnections[0];
+  }, [driveConnections, driveConnectionIdFromQuery]);
 
-    const fetchConnections = useCallback(async () => {
-      if (!userId) {
-        setDriveConnections([]);
-        return;
-      }
+  const fetchConnections = useCallback(async () => {
+    if (!userId) {
+      setDriveConnections([]);
+      return;
+    }
 
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
+    connectionAbortRef.current?.abort();
+    const controller = new AbortController();
+    connectionAbortRef.current = controller;
 
-      setInitialLoading(true);
-      setError(null);
+    setInitialLoading(true);
+    setError(null);
 
       try {
         const res = await fetch(`${API_URL}/drive/connections`, {
@@ -109,28 +115,35 @@
         );
       } catch (err) {
         if (err !== 'AbortError') {
-          setError('Failed to load Drive connection');
+          setError('Link a drive to continue');
         }
       } finally {
-        setInitialLoading(false);
-      }
-    }, [userId, onRequireAuth]);
+      setInitialLoading(false);
+    }
+  }, [userId, onRequireAuth]);
 
-    const fetchSharingUsers = useCallback(async () => {
-      if (!userId || !activeConnection) {
-        setSharingUsers([]);
-        return;
-      }
+  const fetchSharingUsers = useCallback(async () => {
+    if (!userId || !activeConnection) {
+      setSharingUsers([]);
+      setShareWarning(null);
+      return;
+    }
 
-      try {
-        const res = await fetch(
-          `${API_URL}/drive/connections/${activeConnection.id}/users`,
-          {
-            credentials: 'include',
-          }
-        );
+    shareAbortRef.current?.abort();
+    const controller = new AbortController();
+    shareAbortRef.current = controller;
+    setShareWarning(null);
 
-        if (!res.ok) throw mapFetchError(res.status);
+    try {
+      const res = await fetch(
+        `${API_URL}/drive/connections/${activeConnection.id}/users`,
+        {
+          credentials: 'include',
+          signal: controller.signal,
+        }
+      );
+
+      if (!res.ok) throw mapFetchError(res.status);
 
         const data = await res.json();
         setSharingUsers(
@@ -140,34 +153,36 @@
               email: u.email,
               name: u.name ?? null,
             }))
-            : []
-        );
-      } catch {
-        // Don't block the UI if we fail to load sharing info; just clear and show a subtle note.
-        setSharingUsers([]);
-        setError(null);
+          : []
+      );
+    } catch (err) {
+      if (err !== 'AbortError') {
+        setShareWarning('Could not load linked users');
       }
-    }, [userId, activeConnection]);
+      setSharingUsers([]);
+    }
+  }, [userId, activeConnection]);
 
-    useEffect(() => {
-      fetchConnections();
-    }, [fetchConnections]);
+  useEffect(() => {
+    fetchConnections();
+    return () => {
+      connectionAbortRef.current?.abort();
+    };
+  }, [fetchConnections]);
 
-    useEffect(() => {
-      fetchSharingUsers();
+  useEffect(() => {
+    fetchSharingUsers();
+    return () => {
+      shareAbortRef.current?.abort();
+    };
+  }, [fetchSharingUsers]);
 
-      return () => {
-        abortRef.current?.abort();
-      };
-    }, [fetchSharingUsers]);
-
-    // Refresh after OAuth redirect
-    useEffect(() => {
-      if (driveConnectionIdFromQuery) {
-        fetchConnections();
-        onReload();
-      }
-    }, [driveConnectionIdFromQuery, fetchConnections, onReload]);
+  // Refresh after OAuth redirect
+  useEffect(() => {
+    if (driveConnectionIdFromQuery) {
+      onReload();
+    }
+  }, [driveConnectionIdFromQuery, onReload]);
 
     const handleSubmit = useCallback(() => {
       if (!userId) {
@@ -266,4 +281,3 @@
       </div>
     );
   }
-

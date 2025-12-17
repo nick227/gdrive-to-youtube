@@ -5,6 +5,7 @@ interface UserPayload {
   googleSub: string;
   email: string;
   name: string | null;
+  avatarUrl?: string | null;
 }
 
 // Require authentication
@@ -19,4 +20,3 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 export function getCurrentUser(req: Request): UserPayload | undefined {
   return req.user as UserPayload | undefined;
 }
-

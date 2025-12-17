@@ -14,6 +14,7 @@ router.get('/me', (req, res) => {
     id: user.id,
     email: user.email,
     name: user.name,
+    avatarUrl: user.avatarUrl || null,
   });
 });
 
@@ -49,4 +50,3 @@ router.post('/logout', (req, res) => {
 });
 
 export default router;
-

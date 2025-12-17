@@ -4,6 +4,7 @@ CREATE TABLE `User` (
     `googleSub` VARCHAR(191) NOT NULL,
     `email` VARCHAR(191) NOT NULL,
     `name` VARCHAR(191) NULL,
+    `avatarUrl` TEXT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -12,6 +13,41 @@ CREATE TABLE `User` (
     INDEX `User_email_idx`(`email`),
     INDEX `User_googleSub_idx`(`googleSub`),
     PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `DriveConnection` (
+    `id` VARCHAR(191) NOT NULL,
+    `userId` INTEGER NOT NULL,
+    `driveAccountEmail` VARCHAR(191) NOT NULL,
+    `scopes` TEXT NOT NULL,
+    `status` ENUM('ACTIVE', 'ERROR', 'REVOKED') NOT NULL DEFAULT 'ACTIVE',
+    `lastError` TEXT NULL,
+    `rootFolderId` VARCHAR(191) NOT NULL,
+    `rootFolderName` VARCHAR(191) NOT NULL,
+    `rootFolderLink` TEXT NOT NULL,
+    `accessToken` TEXT NULL,
+    `refreshToken` TEXT NULL,
+    `tokenExpiresAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `DriveConnection_userId_idx`(`userId`),
+    INDEX `DriveConnection_status_idx`(`status`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `DriveConsentState` (
+    `state` VARCHAR(191) NOT NULL,
+    `userId` INTEGER NOT NULL,
+    `nonce` VARCHAR(191) NOT NULL,
+    `redirectAfter` TEXT NULL,
+    `requestedFolderId` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `expiresAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`state`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
@@ -55,11 +91,13 @@ CREATE TABLE `MediaItem` (
     `folderPath` TEXT NULL,
     `webViewLink` TEXT NULL,
     `webContentLink` TEXT NULL,
+    `driveConnectionId` VARCHAR(191) NULL,
     `status` ENUM('ACTIVE', 'MISSING', 'DELETED') NOT NULL DEFAULT 'ACTIVE',
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `MediaItem_driveFileId_key`(`driveFileId`),
+    INDEX `MediaItem_driveConnectionId_idx`(`driveConnectionId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -94,6 +132,7 @@ CREATE TABLE `UploadJob` (
     `requestedByUserId` INTEGER NOT NULL,
     `youtubeVideoId` INTEGER NULL,
     `thumbnailMediaItemId` INTEGER NULL,
+    `driveConnectionId` VARCHAR(191) NULL,
     `title` VARCHAR(191) NOT NULL,
     `description` TEXT NOT NULL,
     `tags` TEXT NULL,
@@ -109,6 +148,7 @@ CREATE TABLE `UploadJob` (
     INDEX `UploadJob_requestedByUserId_idx`(`requestedByUserId`),
     INDEX `UploadJob_youtubeVideoId_idx`(`youtubeVideoId`),
     INDEX `UploadJob_thumbnailMediaItemId_idx`(`thumbnailMediaItemId`),
+    INDEX `UploadJob_driveConnectionId_idx`(`driveConnectionId`),
     INDEX `UploadJob_status_scheduledFor_idx`(`status`, `scheduledFor`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -121,6 +161,7 @@ CREATE TABLE `RenderJob` (
     `imageMediaItemId` INTEGER NULL,
     `outputMediaItemId` INTEGER NULL,
     `requestedByUserId` INTEGER NULL,
+    `driveConnectionId` VARCHAR(191) NULL,
     `waveformConfig` TEXT NULL,
     `status` ENUM('PENDING', 'RUNNING', 'SUCCESS', 'FAILED') NOT NULL DEFAULT 'PENDING',
     `errorMessage` TEXT NULL,
@@ -131,15 +172,22 @@ CREATE TABLE `RenderJob` (
     INDEX `RenderJob_imageMediaItemId_idx`(`imageMediaItemId`),
     INDEX `RenderJob_outputMediaItemId_idx`(`outputMediaItemId`),
     INDEX `RenderJob_requestedByUserId_idx`(`requestedByUserId`),
+    INDEX `RenderJob_driveConnectionId_idx`(`driveConnectionId`),
     INDEX `RenderJob_status_idx`(`status`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `DriveConnection` ADD CONSTRAINT `DriveConnection_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `YoutubeChannelLink` ADD CONSTRAINT `YoutubeChannelLink_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `YoutubeChannelLink` ADD CONSTRAINT `YoutubeChannelLink_channelId_fkey` FOREIGN KEY (`channelId`) REFERENCES `YoutubeChannel`(`channelId`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `MediaItem` ADD CONSTRAINT `MediaItem_driveConnectionId_fkey` FOREIGN KEY (`driveConnectionId`) REFERENCES `DriveConnection`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `YoutubeVideo` ADD CONSTRAINT `YoutubeVideo_mediaItemId_fkey` FOREIGN KEY (`mediaItemId`) REFERENCES `MediaItem`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -166,6 +214,9 @@ ALTER TABLE `UploadJob` ADD CONSTRAINT `UploadJob_youtubeVideoId_fkey` FOREIGN K
 ALTER TABLE `UploadJob` ADD CONSTRAINT `UploadJob_thumbnailMediaItemId_fkey` FOREIGN KEY (`thumbnailMediaItemId`) REFERENCES `MediaItem`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `UploadJob` ADD CONSTRAINT `UploadJob_driveConnectionId_fkey` FOREIGN KEY (`driveConnectionId`) REFERENCES `DriveConnection`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `RenderJob` ADD CONSTRAINT `RenderJob_audioMediaItemId_fkey` FOREIGN KEY (`audioMediaItemId`) REFERENCES `MediaItem`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -176,3 +227,6 @@ ALTER TABLE `RenderJob` ADD CONSTRAINT `RenderJob_outputMediaItemId_fkey` FOREIG
 
 -- AddForeignKey
 ALTER TABLE `RenderJob` ADD CONSTRAINT `RenderJob_requestedByUserId_fkey` FOREIGN KEY (`requestedByUserId`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `RenderJob` ADD CONSTRAINT `RenderJob_driveConnectionId_fkey` FOREIGN KEY (`driveConnectionId`) REFERENCES `DriveConnection`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;

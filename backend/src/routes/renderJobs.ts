@@ -151,6 +151,7 @@ router.get('/', async (req, res) => {
         : null,
     }));
 
+    console.log('[render-jobs] returning', serialized.length, 'jobs');
     res.json(serialized);
   } catch (err) {
     console.error(err);

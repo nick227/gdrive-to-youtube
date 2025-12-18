@@ -7,30 +7,31 @@ import {
 } from 'react';
 import { API_URL } from '../config/api';
 
-  type DriveConnection = {
-    id: string;
-    rootFolderId: string;
-    rootFolderName: string;
-  };
+type DriveConnection = {
+  id: string;
+  rootFolderId: string;
+  rootFolderName: string;
+};
 
-  type UserInfo = {
-    id: number;
-    email: string;
-    name: string | null;
-  };
+type UserInfo = {
+  id: number;
+  email: string;
+  name: string | null;
+};
 
 type Props = {
   userId: number | null;
   onRequireAuth: () => void;
   onReload: () => void;
   driveConnectionIdFromQuery?: string | null;
-  };
+};
 
-  type FetchError =
-    | 'unauthorized'
-    | 'forbidden'
-    | 'network'
-    | 'unknown';
+type FetchError =
+  | 'unauthorized'
+  | 'forbidden'
+  | 'network'
+  | 'unknown';
+
 
 function extractFolderId(input: string): string | null {
   const trimmed = input.trim();
@@ -44,19 +45,19 @@ function extractFolderId(input: string): string | null {
   return null;
 }
 
-  function mapFetchError(status?: number): FetchError {
-    if (!status) return 'network';
-    if (status === 401) return 'unauthorized';
-    if (status === 403) return 'forbidden';
-    return 'unknown';
-  }
+function mapFetchError(status?: number): FetchError {
+  if (!status) return 'network';
+  if (status === 401) return 'unauthorized';
+  if (status === 403) return 'forbidden';
+  return 'unknown';
+}
 
-  export function GoogleDriveWidget({
-    userId,
-    onRequireAuth,
-    onReload,
-    driveConnectionIdFromQuery,
-  }: Props) {
+export function GoogleDriveWidget({
+  userId,
+  onRequireAuth,
+  onReload,
+  driveConnectionIdFromQuery,
+}: Props) {
   const [driveConnections, setDriveConnections] = useState<DriveConnection[]>([]);
   const [sharingUsers, setSharingUsers] = useState<UserInfo[]>([]);
   const [driveFolderInput, setDriveFolderInput] = useState('');
@@ -68,6 +69,7 @@ function extractFolderId(input: string): string | null {
 
   const connectionAbortRef = useRef<AbortController | null>(null);
   const shareAbortRef = useRef<AbortController | null>(null);
+  const [driveLinkOpen, setDriveLinkOpen] = useState(false);
 
   const activeConnection = useMemo(() => {
     if (driveConnections.length === 0) return null;
@@ -91,33 +93,33 @@ function extractFolderId(input: string): string | null {
     setInitialLoading(true);
     setError(null);
 
-      try {
-        const res = await fetch(`${API_URL}/drive/connections`, {
-          credentials: 'include',
-          signal: controller.signal,
-        });
+    try {
+      const res = await fetch(`${API_URL}/drive/connections`, {
+        credentials: 'include',
+        signal: controller.signal,
+      });
 
-        if (!res.ok) {
-          const type = mapFetchError(res.status);
-          if (type === 'unauthorized') onRequireAuth();
-          throw type;
-        }
+      if (!res.ok) {
+        const type = mapFetchError(res.status);
+        if (type === 'unauthorized') onRequireAuth();
+        throw type;
+      }
 
-        const data = await res.json();
-        setDriveConnections(
-          Array.isArray(data)
-            ? data.map((c: any) => ({
-              id: c.id,
-              rootFolderId: c.rootFolderId,
-              rootFolderName: c.rootFolderName,
-            }))
-            : []
-        );
-      } catch (err) {
-        if (err !== 'AbortError') {
-          setError('Link a drive to continue');
-        }
-      } finally {
+      const data = await res.json();
+      setDriveConnections(
+        Array.isArray(data)
+          ? data.map((c: any) => ({
+            id: c.id,
+            rootFolderId: c.rootFolderId,
+            rootFolderName: c.rootFolderName,
+          }))
+          : []
+      );
+    } catch (err) {
+      if (err !== 'AbortError') {
+        setError('Link a drive to continue');
+      }
+    } finally {
       setInitialLoading(false);
     }
   }, [userId, onRequireAuth]);
@@ -145,14 +147,14 @@ function extractFolderId(input: string): string | null {
 
       if (!res.ok) throw mapFetchError(res.status);
 
-        const data = await res.json();
-        setSharingUsers(
-          Array.isArray(data)
-            ? data.map((u: any) => ({
-              id: u.id,
-              email: u.email,
-              name: u.name ?? null,
-            }))
+      const data = await res.json();
+      setSharingUsers(
+        Array.isArray(data)
+          ? data.map((u: any) => ({
+            id: u.id,
+            email: u.email,
+            name: u.name ?? null,
+          }))
           : []
       );
     } catch (err) {
@@ -162,6 +164,15 @@ function extractFolderId(input: string): string | null {
       setSharingUsers([]);
     }
   }, [userId, activeConnection]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('driveLinkOpen');
+    if (saved !== null) setDriveLinkOpen(saved === 'true');
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('driveLinkOpen', String(driveLinkOpen));
+  }, [driveLinkOpen]);
 
   useEffect(() => {
     fetchConnections();
@@ -184,100 +195,106 @@ function extractFolderId(input: string): string | null {
     }
   }, [driveConnectionIdFromQuery, onReload]);
 
-    const handleSubmit = useCallback(() => {
-      if (!userId) {
-        onRequireAuth();
-        return;
-      }
+  const toggleDriveLink = useCallback(() => {
+    setDriveLinkOpen((open) => !open);
+  }, []);
 
-      const folderId = extractFolderId(driveFolderInput);
+  const handleSubmit = useCallback(() => {
+    if (!userId) {
+      onRequireAuth();
+      return;
+    }
 
-      if (!folderId) {
-        setError('Invalid Drive folder ID or URL');
-        return;
-      }
+    const folderId = extractFolderId(driveFolderInput);
 
-      setError(null);
-      setSubmitting(true);
+    if (!folderId) {
+      setError('Invalid Drive folder ID or URL');
+      return;
+    }
 
-      const params = new URLSearchParams({
-        mode: 'redirect',
-        requestedFolderId: folderId,
-        redirectAfter: '/',
-      });
+    setError(null);
+    setSubmitting(true);
 
-      window.location.href = `${API_URL}/drive/auth-url?${params.toString()}`;
-    }, [userId, driveFolderInput, onRequireAuth]);
+    const params = new URLSearchParams({
+      mode: 'redirect',
+      requestedFolderId: folderId,
+      redirectAfter: '/',
+    });
 
-    return (
-      <div className="mb-6 p-4 border rounded bg-white shadow-sm">
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="section-title m-0">Google Drive Link</h3>
-          <span className="text-xs text-gray-500">
-            Shared library across linked users
-          </span>
-        </div>
+    window.location.href = `${API_URL}/drive/auth-url?${params.toString()}`;
+  }, [userId, driveFolderInput, onRequireAuth]);
 
-        <p className="text-sm text-gray-600 mb-2">
-          Paste a Drive folder ID or URL to link a shared media library.
-        </p>
+  return (
+    <div className="mb-6">
+      <div className="flex justify-between py-4 my-2 rounded bg-slate-50 p-3">
+        <h3 className="section-title m-0">Google Drive Link</h3>
+        <i className={`fa-solid fa-chevron-${driveLinkOpen ? 'up' : 'down'} cursor-pointer`} onClick={toggleDriveLink} />
+      </div>
+      {driveLinkOpen && (
+        <>
+          <p className="text-sm text-gray-600 mb-2">
+            Paste a Drive folder ID or URL to link a shared media library.
+          </p>
 
-        {initialLoading && (
-          <div className="text-sm text-gray-500 mb-2">
-            Loading Drive connection…
-          </div>
-        )}
-
-        {activeConnection && (
-          <div className="mb-3 text-sm">
-            <strong>Active folder:</strong>{' '}
-            {activeConnection.rootFolderName} ({activeConnection.rootFolderId})
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <input
-            className="input flex-1"
-            value={driveFolderInput}
-            placeholder="Drive folder ID or URL"
-            aria-label="Google Drive folder ID or URL"
-            aria-describedby={error ? 'drive-error' : undefined}
-            onChange={(e) => setDriveFolderInput(e.target.value)}
-            disabled={submitting}
-          />
-          <button
-            className={`btn btn-primary ${submitting ? 'opacity-60 cursor-not-allowed' : ''
-              }`}
-            onClick={handleSubmit}
-            disabled={submitting}
-            aria-disabled={submitting}
-          >
-            {submitting ? 'Redirecting…' : 'Link Drive'}
-          </button>
-        </div>
-
-        {error && (
-          <div
-            id="drive-error"
-            role="alert"
-            className="text-error text-sm mt-2"
-          >
-            {error}
-          </div>
-        )}
-
-        <div className="mt-4">
-          {sharingUsers.length > 0 && (
-            <div>
-              <h4 className="text-sm font-semibold mb-1">
-                Linked users:
-              </h4>
-              {sharingUsers.map((u) => (
-                <span className="p-2 mr-2">{u.name || 'Unknown'}</span>
-              ))}
+          {initialLoading && (
+            <div className="text-sm text-gray-500 mb-2">
+              Loading Drive connection…
             </div>
           )}
-        </div>
-      </div>
-    );
-  }
+
+          {activeConnection && (
+            <div className="mb-3 text-sm">
+              <strong>Active folder:</strong>{' '}
+              {activeConnection.rootFolderName} ({activeConnection.rootFolderId})
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <input
+              className="input flex-1"
+              value={driveFolderInput}
+              placeholder="Drive folder ID or URL"
+              aria-label="Google Drive folder ID or URL"
+              aria-describedby={error ? 'drive-error' : undefined}
+              onChange={(e) => setDriveFolderInput(e.target.value)}
+              disabled={submitting}
+            />
+            <button
+              className={`btn btn-primary ${submitting ? 'opacity-60 cursor-not-allowed' : ''
+                }`}
+              onClick={handleSubmit}
+              disabled={submitting || !driveFolderInput}
+              aria-disabled={submitting}
+            >
+              {submitting ? 'Redirecting…' : 'Link Drive'}
+            </button>
+          </div>
+
+          {error && (
+            <div
+              id="drive-error"
+              role="alert"
+              className="text-error text-sm mt-2"
+            >
+              {error}
+            </div>
+          )}
+
+          <div className="mt-4">
+            {sharingUsers.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold mb-1">
+                  Linked users:
+                </h4>
+                {sharingUsers.map((u) => (
+                  <span className="p-2 mr-2" key={u.id}>{u.name || 'Unknown'}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+
+      )}
+    </div>
+  );
+}

@@ -10,7 +10,7 @@ import {
   markDriveConnectionStatus,
 } from '../utils/driveConnectionClient';
 
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const DEFAULT_FOLDER_NAME = process.env.DRIVE_DEFAULT_FOLDER_NAME || 'App Uploads';
 const PUBLIC_URL = process.env.PUBLIC_URL || 'http://localhost:4000';
@@ -217,7 +217,17 @@ router.get('/callback', async (req, res) => {
           folder.data.webViewLink || `https://drive.google.com/drive/folders/${rootFolderId}`;
       } catch (folderErr) {
         console.error('[drive] validate requested folder failed', folderErr);
-        return res.redirect(`${FRONTEND_URL}?error=drive_folder_unreachable`);
+        const reason =
+          (folderErr as { response?: { data?: { error?: { reason?: string } } } }).response?.data
+            ?.error?.reason;
+        const code =
+          (folderErr as { code?: number }).code ||
+          (folderErr as { response?: { status?: number } }).response?.status;
+        const detail =
+          reason === 'notFound' || code === 404
+            ? 'drive_folder_not_found_or_no_access'
+            : 'drive_folder_unreachable';
+        return res.redirect(`${FRONTEND_URL}?error=${detail}`);
       }
     } else {
       const created = await drive.files.create({
@@ -512,8 +522,18 @@ router.post('/folder/resolve', async (req, res) => {
         supportsAllDrives: true,
       });
     } catch (err) {
+      const reason =
+        (err as { response?: { data?: { error?: { reason?: string } } } }).response?.data?.error
+          ?.reason;
+      const code =
+        (err as { code?: number }).code ||
+        (err as { response?: { status?: number } }).response?.status;
+      const detail =
+        reason === 'notFound' || code === 404
+          ? 'drive_folder_not_found_or_no_access'
+          : 'drive_folder_unreachable';
       await markError(fresh.id, err);
-      return res.status(401).json({ error: 'Folder not accessible with current tokens' });
+      return res.status(401).json({ error: detail });
     }
 
     if (folder.data.mimeType !== 'application/vnd.google-apps.folder') {

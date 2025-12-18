@@ -27,7 +27,7 @@ export function useMediaDashboard() {
     setState((prev) => ({ ...prev, loading: true, error: null }));
     try {
       const [mediaRes, uploadRes, renderRes, channelsRes] = await Promise.all([
-        fetch(`${API_URL}/media`),
+        fetch(`${API_URL}/media`, { credentials: 'include' }),
         fetch(`${API_URL}/upload-jobs`, { credentials: 'include' }),
         fetch(`${API_URL}/render-jobs`, { credentials: 'include' }),
         fetch(`${API_URL}/channels`),

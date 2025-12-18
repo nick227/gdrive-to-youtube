@@ -1,25 +1,19 @@
 // routes/media.ts
 import { Router } from 'express';
 import prisma from '../prismaClient';
-import { requireAuth, getCurrentUser } from '../auth/middleware';
+import { requireAuth } from '../auth/middleware';
 
 const router = Router();
 
-// List recent media items scoped to drives the current user has linked (shared by rootFolderId)
+// List recent media items scoped to any active Drive connection (shared by rootFolderId)
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const user = getCurrentUser(req);
-    if (!user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
+    console.log('[media] request from user', req.user ? (req.user as { id?: number; email?: string }).email : 'unknown');
 
-    // Connections belonging to this user (non-revoked)
+    // All active/non-revoked drive connections (shared library)
     const connections = await prisma.driveConnection.findMany({
-      where: {
-        userId: user.id,
-        status: { not: 'REVOKED' },
-      },
-      select: { id: true, rootFolderId: true },
+      where: { status: { not: 'REVOKED' } },
+      select: { rootFolderId: true },
     });
 
     if (connections.length === 0) {
@@ -28,18 +22,22 @@ router.get('/', requireAuth, async (req, res) => {
 
     const rootFolderIds = Array.from(new Set(connections.map((c) => c.rootFolderId)));
 
+    console.log('[media] active connections', connections.length, rootFolderIds);
+
     const media = await prisma.mediaItem.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
       where: {
         status: { not: 'MISSING' },
-        // shared library: include items whose connection points at any of the same root folders
+        // shared library: include items whose connection points at any active root folders
         driveConnection: {
           rootFolderId: { in: rootFolderIds },
           status: { not: 'REVOKED' },
         },
       },
     });
+
+    console.log('[media] returning media count', media.length);
 
     const serializedMedia = media.map(item => ({
       ...item,

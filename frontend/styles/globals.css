@@ -157,8 +157,9 @@ a:hover {
 
 .history-panel {
   width: 100%;
-  max-height: 400px;
-  overflow-y: auto;
-
 }
 
+.user-avatar {
+  width: 35px;
+  height: 35px;
+}

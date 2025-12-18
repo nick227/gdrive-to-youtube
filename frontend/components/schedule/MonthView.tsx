@@ -19,7 +19,7 @@ export function MonthView({ monthKey, startDay, daysInMonth, itemsByDay, onOpenD
 
       <div className="grid grid-cols-7 gap-px bg-neutral-200 w-full">
         {Array.from({ length: startDay }).map((_, i) => (
-          <div key={i} className="bg-white h-16" />
+          <div key={i} className="bg-white h-32" />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, i) => {

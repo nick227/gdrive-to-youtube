@@ -11,7 +11,6 @@ interface PendingJobsListProps {
     onRefresh: () => void;
     onToggle: () => void;
     isOpen?: boolean;
-    loading?: boolean;
 }
 
 interface PendingJobRow {
@@ -66,10 +65,8 @@ function safeTime(value: string): number {
 export default function PendingJobsList({
     uploadJobs,
     renderJobs,
-    onRefresh,
     onToggle,
-    isOpen = true,
-    loading = false,
+    isOpen = false,
 }: PendingJobsListProps) {
     const rows = useMemo<PendingJobRow[]>(() => {
         const uploadRows: PendingJobRow[] = uploadJobs.map((job) => {
@@ -133,50 +130,20 @@ export default function PendingJobsList({
     }, [uploadJobs, renderJobs]);
 
     return (
-        <div className="section mt-4 rounded bg-slate-50 p-3">
-            <div className="flex justify-between items-center mb-2 w-full">
-                <div className="flex items-center gap-2">
+        <div className="mt-4">
+            <div className="flex justify-between py-4 rounded bg-slate-50 p-3">
+                
                     <h3 className="section-title m-0">
                         History {rows.length > 0 && `(${rows.length})`}
                     </h3>
-                    {!isOpen && <span className="text-xs text-muted">collapsed</span>}
-                </div>
-                <div className='flex justify-end items-center gap-1'>
-                <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={onToggle}
-                    disabled={loading}
-                >
-                        <i className={`fa-solid ${isOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
-                    </button>
-
-                <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={onRefresh}
-                    disabled={loading}
-                >
-
-                    {loading ? (
-                        <i className="fa-solid fa-spinner fa-spin" />
-                    ) : (
-                        <i className="fa-solid fa-rotate" />
-                    )}
-                </button>
-                </div>
+                        <i onClick={onToggle} className={`cursor-pointer fa-solid ${!isOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
             </div>
-
-            {!isOpen ? null : rows.length === 0 ? (
-                <div className="alert alert-info" style={{ marginBottom: 0 }}>
-                    none
-                </div>
-            ) : (
-                <div className="d-flex flex-column gap-2 item-list">
+            {!isOpen && (
+                <div className="d-flex flex-column gap-2 item-list h-60 overflow-y-auto">
                     {rows.map((row) => (
                     <div
                         key={row.id}
-                        className="d-flex flex-column gap-1  odd:bg-white even:bg-slate-100 p-4"
+                        className="d-flex flex-column gap-1  odd:bg-white even:bg-slate-100 px-1"
                     >
                         <div className="d-flex justify-content-between align-items-center">
                             <div className="d-flex align-items-center gap-2">

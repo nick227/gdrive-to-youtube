@@ -79,6 +79,7 @@ interface EnrichedMediaItem extends MediaItem {
     formattedDate: string;
     fullPath: string;
     stableKey: string;
+    compactStatus: string;
     usage: {
       uploadCount: number;
       latestUploadStatus: string | null;
@@ -98,6 +99,16 @@ type RenderUsageEntry = {
   latestStatus: string | null;
   latestTime: number;
 };
+
+function deriveCompactStatusFromUsage(usage: EnrichedMediaItem['_enriched']['usage']): string {
+  const count =
+    (usage.renderAudioCount ?? 0) +
+    (usage.renderImageCount ?? 0) +
+    (usage.renderOutputCount ?? 0);
+
+  if (!usage.latestRenderStatus || count === 0) return '';
+  return `${usage.latestRenderStatus} ${count}`;
+}
 
 function enrichMediaItem(
   item: MediaItem,
@@ -129,6 +140,7 @@ function enrichMediaItem(
         : `${item.folderPath ?? 'none'}/${item.name ?? 'unnamed'}::${createdAtTime}::${sizeNum}::${item.mimeType ?? 'unknown'}`;
 
   const usage = deriveUsage(item.id, uploadUsage, renderUsage);
+  const compactStatus = deriveCompactStatusFromUsage(usage);
 
   return {
     ...item,
@@ -141,6 +153,7 @@ function enrichMediaItem(
       fullPath,
       stableKey,
       usage,
+      compactStatus,
     },
   };
 }
@@ -220,6 +233,7 @@ export default function MediaTable({
     allowed: new Set(['image', 'video', 'audio']),
     showOther: true,
   });
+  const [renderStatusFilter, setRenderStatusFilter] = useState<string | null>(null);
 
   const toggleMimeType = (type: MimeTypeFilter) => {
     setMimeFilters((prev) => {
@@ -328,17 +342,14 @@ export default function MediaTable({
     if (search.trim()) {
       const q = search.toLowerCase();
       items = items.filter((item) => {
-        const fullPath = item._enriched.fullPath.toLowerCase();
-        const mimeType = (item.mimeType ?? '').toLowerCase();
-        const statusText = (item.status ?? '').toLowerCase();
-        const stateKind = item._enriched.state.kind.toLowerCase();
-        const err = item._enriched.state.job?.errorMessage?.toLowerCase() ?? '';
+        const { fullPath, compactStatus } = item._enriched;
         return (
-          fullPath.includes(q) ||
-          mimeType.includes(q) ||
-          statusText.includes(q) ||
-          stateKind.includes(q) ||
-          err.includes(q)
+          fullPath.toLowerCase().includes(q) ||
+          (item.mimeType ?? '').toLowerCase().includes(q) ||
+          (item.status ?? '').toLowerCase().includes(q) ||
+          item._enriched.state.kind.toLowerCase().includes(q) ||
+          (item._enriched.state.job?.errorMessage ?? '').toLowerCase().includes(q) ||
+          compactStatus.toLowerCase().includes(q)
         );
       });
     }
@@ -467,44 +478,31 @@ export default function MediaTable({
             const handleCancel =
               onCancelJob && jobId != null ? () => onCancelJob(jobId) : undefined;
 
-            function deriveCompactStatus(): string {
-              if (!usage) return ''
-
-              const count =
-                (usage.renderAudioCount ?? 0) +
-                (usage.renderImageCount ?? 0) +
-                (usage.renderOutputCount ?? 0)
-
-              if (!usage.latestRenderStatus || count === 0) return ''
-
-              return `${usage.latestRenderStatus} ${count}`
-            }
-
 
             return (
               <div key={stableKey} className={`media-item ${mimeCategory}`}>
 
-                  {mimeCategory === 'other' && <i className="fa-regular fa-question shrink-0 text-xl" />}
-                  {mimeCategory === 'image' && <i className="fa-regular fa-image shrink-0 text-xl" />}
-                  {mimeCategory === 'video' && <i className="fa-solid fa-video shrink-0 text-xl" />}
-                  {mimeCategory === 'audio' && <i className="fa-solid fa-music shrink-0 text-xl" />}
+                {mimeCategory === 'other' && <i className="fa-regular fa-question shrink-0 text-xl" />}
+                {mimeCategory === 'image' && <i className="fa-regular fa-image shrink-0 text-xl" />}
+                {mimeCategory === 'video' && <i className="fa-solid fa-video shrink-0 text-xl" />}
+                {mimeCategory === 'audio' && <i className="fa-solid fa-music shrink-0 text-xl" />}
 
                 <div className="media-item-preview">
                   <MediaPreview item={item} />
                 </div>
 
-                <div className={`flex items-start h-20 px-4 py-1 ${mimeCategory}`}>
+                <div className={`h-20 px-4 py-1 ${mimeCategory}`}>
 
                   <span
                     title={fullPath}
                     className="min-w-0 line-clamp-3 break-all items-baseline-start"
                   >
-                    {fullPath} <span className='bg-amber-50 whitespace-nowrap'>{deriveCompactStatus()}</span>
+                    {fullPath}
                   </span>
+                  <div className='text-xs whitespace-nowrap'>{item._enriched.compactStatus}</div>
                 </div>
 
                 <div className='media-item-footer flex justify-end px-4 gap-4 mb-4'>
-
                   {state.kind === 'failed' && state.job && (
                     <span className="text-error text-xs">{state.job.errorMessage}</span>
                   )}

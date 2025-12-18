@@ -93,6 +93,7 @@ router.get('/', async (req, res) => {
         : null,
     }));
     
+    console.log('[upload-jobs] user', user ? user.id : null, 'jobs', serializedJobs.length);
     res.json(serializedJobs);
   } catch (err) {
     console.error(err);

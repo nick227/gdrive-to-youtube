@@ -14,6 +14,7 @@ import { ScheduleItem } from '../components/schedule/types'
 import { UploadJob } from '../types/api'
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GoogleDriveWidget } from '../components/GoogleDriveWidget';
+import Image from 'next/image';
 
 function mapUploadJobsToScheduleItems(
   jobs: UploadJob[]
@@ -44,7 +45,7 @@ function PageContent() {
   const [selectedMediaItem, setSelectedMediaItem] = useState<MediaItem | null>(null);
   const [quickUploadOpen, setQuickUploadOpen] = useState(false);
   const [createVideoOpen, setCreateVideoOpen] = useState(false);
-  const [scheduleOpen, setScheduleOpen] = useState(true);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
 
   const router = useRouter();
@@ -183,15 +184,15 @@ function PageContent() {
     <main className="page-container">
       <div className="section-header">
         <h1 className="page-title">Youtube Upload Manager</h1>
-        <div className='flex flex-nowrap toolbar'>
+        <div className='flex gap-2'>
           <div className="flex items-center gap-3">
             {user && (
               <a
-                className="btn-link"
+                className="btn-link whitespace-nowrap"
                 href={`${API_URL}/channels/auth-url?userId=${user.id}`}
                 target="_blank"
                 rel="noreferrer"
-              >Linked Accounts</a>
+              >Account +</a>
             )}
             {user && channels && (
               <>
@@ -204,23 +205,25 @@ function PageContent() {
             )}
           </div>
             {user ? (
-              <>
+              <div className='flex'>
                 {user.avatarUrl && (
-                  <img
-                    className="user-avatar"
+                  <Image
+                    className="user-avatar rounded-full mr-2"
                     src={user.avatarUrl}
                     alt={user.name ?? user.email}
+                    width={32}
+                    height={32}
                   />
                 )}
                 <button className="btn btn-secondary" onClick={logout}>
                   Logout
                 </button>
-              </>
+              </div>
             ) : (
-            <button className="btn btn-login" onClick={login}>
-              Sign in with Google
-            </button>
-          )}
+              <button className="btn btn-login" onClick={login}>
+                Sign in with Google
+              </button>
+            )}
         </div>
       </div>
 
@@ -246,7 +249,6 @@ function PageContent() {
               onRefresh={reload}
               onToggle={toggleHistory}
               isOpen={historyOpen}
-              loading={loading}
             />
           </div>
         )}
@@ -255,9 +257,9 @@ function PageContent() {
 
       {user && (
         <>
-          <div className='flex justify-between py-4 my-4 section rounded bg-slate-50 p-3'>
+          <div className='flex justify-between py-4 my-2 rounded bg-slate-50 p-3'>
             <h3 className='section-title m-0'>Schedule</h3>
-            <i className={`fa-solid fa-chevron-${scheduleOpen ? 'up' : 'down'}`} onClick={toggleSchedule} />
+            <i className={`cursor-pointer fa-solid fa-chevron-${scheduleOpen ? 'up' : 'down'}`} onClick={toggleSchedule} />
           </div>
             {scheduleOpen && (
               <div className="pb-4 mb-8">

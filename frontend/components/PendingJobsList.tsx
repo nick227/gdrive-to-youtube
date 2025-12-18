@@ -143,7 +143,7 @@ export default function PendingJobsList({
                     {rows.map((row) => (
                     <div
                         key={row.id}
-                        className="d-flex flex-column gap-1  odd:bg-white even:bg-slate-100 px-1"
+                        className="d-flex flex-column gap-1  odd:bg-white even:bg-slate-100 px-1 my-4"
                     >
                         <div className="d-flex justify-content-between align-items-center">
                             <div className="d-flex align-items-center gap-2">
@@ -153,7 +153,7 @@ export default function PendingJobsList({
                             <div className="text-muted text-xs">{formatDate(row.createdAt)}</div>
                         </div>
 
-                        <div className="d-flex align-items-center gap-2 flex-wrap">
+                        <div className="flex align-items-center gap-2 flex-wrap my-2">
                             <div className="text-sm">
                             Type: {row.kind}
                             </div>

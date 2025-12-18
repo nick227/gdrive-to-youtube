@@ -1,11 +1,11 @@
 'use client';
 
-import { MediaItem } from '../types/api';
-import { API_URL } from '../config/api';
-import { buildPreviewUrl, getMimeCategory } from '../config/mediaPreview';
+type MediaCategory = 'image' | 'audio' | 'video' | 'other';
 
 interface MediaPreviewProps {
-  item: MediaItem;
+  src?: string;
+  category: MediaCategory;
+  name?: string;
 }
 
 let activeMedia: HTMLMediaElement | null = null;
@@ -17,25 +17,9 @@ function handlePlay(el: HTMLMediaElement) {
   activeMedia = el;
 }
 
-/**
- * MediaPreview
- * Renders a small inline preview for image / audio / video
- * using Google Drive–backed routes.
- *
- * All URL and category logic is delegated to config/mediaPreview.ts
- * so this component stays focused on rendering.
- */
-export default function MediaPreview({ item }: MediaPreviewProps) {
-  const driveFileId = item.driveFileId;
-
-  if (!driveFileId) {
-    return <span className="text-muted text-xs">No preview</span>;
-  }
-
-  const category = getMimeCategory(item.mimeType ?? undefined);
-  const src = buildPreviewUrl(API_URL, driveFileId, category);
-
-  if (!src) {
+// Renders a small inline preview for image / audio / video using Drive-backed routes.
+export default function MediaPreview({ src, category, name }: MediaPreviewProps) {
+  if (!src || category === 'other') {
     return <span className="text-muted text-xs">No preview</span>;
   }
 
@@ -65,14 +49,13 @@ export default function MediaPreview({ item }: MediaPreviewProps) {
     };
   };
 
-
   if (category === 'image') {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         onClick={showImage}
         src={src}
-        alt={item.name}
+        alt={name ?? 'preview'}
         style={{
           objectFit: 'contain',
           display: 'block',
@@ -83,10 +66,9 @@ export default function MediaPreview({ item }: MediaPreviewProps) {
 
   if (category === 'audio') {
     return (
-      <div className='w-full media-item-audio'>
-        <div className='audio-label'>Audio</div>
-        <audio controls src={src}
-          onPlay={(e) => handlePlay(e.currentTarget)} />
+      <div className="w-full media-item-audio">
+        <div className="audio-label">Audio</div>
+        <audio controls src={src} onPlay={e => handlePlay(e.currentTarget)} />
       </div>
     );
   }
@@ -96,7 +78,7 @@ export default function MediaPreview({ item }: MediaPreviewProps) {
       <video
         controls
         src={src}
-        onPlay={(e) => handlePlay(e.currentTarget)}
+        onPlay={e => handlePlay(e.currentTarget)}
         style={{
           display: 'block',
         }}

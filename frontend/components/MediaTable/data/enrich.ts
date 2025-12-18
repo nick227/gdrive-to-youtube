@@ -1,7 +1,7 @@
 import { MediaItem, UploadJob } from '../../../types/api';
 import { getMediaRowState } from '../../../utils/mediaRowState';
 import { getMimeTypeCategory } from './filters';
-import { UsageMaps, EnrichedMediaItem } from './types';
+import { UsageMaps, EnrichedMediaItem, UploadUsageEntry, RenderUsageEntry } from './types';
 
 function normalizePathJoin(
   folderPath: string | null | undefined,

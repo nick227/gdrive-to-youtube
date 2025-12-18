@@ -46,7 +46,8 @@ function PageContent() {
   const [quickUploadOpen, setQuickUploadOpen] = useState(false);
   const [createVideoOpen, setCreateVideoOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -159,10 +160,14 @@ function PageContent() {
     setHistoryOpen((prev) => !prev);
   }, []);
 
+  const toggleAbout = useCallback(() => {
+    setAboutOpen((prev) => !prev);
+  }, []);
+
   if (authLoading || loading) {
     return (
       <main className="page-container">
-        <h1 className="page-title">YouTube Upload Manager</h1>
+        <h1 className="text-2xl">YUM..</h1>
         <p>Loading...</p>
       </main>
     );
@@ -171,7 +176,7 @@ function PageContent() {
   if (error) {
     return (
       <main className="page-container">
-        <h1 className="page-title">YouTube Upload Manager</h1>
+        <h1 className="text-2xl">YUM?</h1>
         <p className="text-error">{error}</p>
         <button className="btn btn-secondary mt-md" onClick={reload}>
           Retry
@@ -183,7 +188,7 @@ function PageContent() {
   return (
     <main className="page-container">
       <div className="section-header">
-        <h1 className="page-title">Youtube Upload Manager</h1>
+        <h1 title="YouTube Upload Manager" className="text-2xl">YUM</h1>
         <div className='flex gap-2'>
           <div className="flex items-center gap-3">
             {user && (
@@ -204,26 +209,26 @@ function PageContent() {
               </>
             )}
           </div>
-            {user ? (
-              <div className='flex'>
-                {user.avatarUrl && (
-                  <Image
-                    className="user-avatar rounded-full mr-2"
-                    src={user.avatarUrl}
-                    alt={user.name ?? user.email}
-                    width={32}
-                    height={32}
-                  />
-                )}
-                <button className="btn btn-secondary" onClick={logout}>
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <button className="btn btn-login" onClick={login}>
-                Sign in with Google
+          {user ? (
+            <div className='flex'>
+              {user.avatarUrl && (
+                <Image
+                  className="user-avatar rounded-full mr-2"
+                  src={user.avatarUrl}
+                  alt={user.name ?? user.email}
+                  width={32}
+                  height={32}
+                />
+              )}
+              <button className="btn btn-secondary" onClick={logout}>
+                Logout
               </button>
-            )}
+            </div>
+          ) : (
+            <button className="btn btn-login" onClick={login}>
+              Sign in with Google
+            </button>
+          )}
         </div>
       </div>
 
@@ -239,6 +244,30 @@ function PageContent() {
         </div>
       )}
 
+      <div className='flex justify-between py-4  rounded bg-slate-50 p-3'>
+        <h3 className='section-title m-0'>About site</h3>
+        <i className={`cursor-pointer fa-solid fa-chevron-${aboutOpen ? 'up' : 'down'}`} onClick={toggleAbout} />
+      </div>
+      {aboutOpen && (
+        <div className="py-2 mb-4 site-info">
+          <div className='flex flex-col justify-center text-center'>
+            <h1 className='text-9xl'>YUM</h1>
+            <h3>YouTube Upload Manager</h3>
+          <p className='text-xl my-4'>
+            Pulls media from Google Drive and uploads it to YouTube
+          </p>
+          <ul className="list-disc list-inside space-y-2 text-xl">
+            <li className='pb-4'>Sign in with Google</li>
+            <li className='pb-4'>Connect YouTube channel</li>
+            <li className='pb-4'>Link Google Drive</li>
+            <li className='pb-4'>Combine images and audio</li>
+            <li className='pb-4'>Upload to YouTube</li>
+            <li className='pb-4'>Share Drive ID</li>
+          </ul>
+          </div>
+        </div>
+      )}
+
       <div className='flex justify-between'>
 
         {user && (
@@ -248,7 +277,7 @@ function PageContent() {
               renderJobs={renderJobs}
               onRefresh={reload}
               onToggle={toggleHistory}
-              isOpen={historyOpen}
+              isOpen={!historyOpen}
             />
           </div>
         )}
@@ -261,11 +290,11 @@ function PageContent() {
             <h3 className='section-title m-0'>Schedule</h3>
             <i className={`cursor-pointer fa-solid fa-chevron-${scheduleOpen ? 'up' : 'down'}`} onClick={toggleSchedule} />
           </div>
-            {scheduleOpen && (
-              <div className="pb-4 mb-8">
-                <ScheduleView items={scheduleItems} />
-              </div>
-            )}
+          {scheduleOpen && (
+            <div className="pb-4 mb-8">
+              <ScheduleView items={scheduleItems} />
+            </div>
+          )}
         </>
       )}
 

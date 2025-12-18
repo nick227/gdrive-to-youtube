@@ -130,7 +130,7 @@ export default function PendingJobsList({
     }, [uploadJobs, renderJobs]);
 
     return (
-        <div className="mt-4">
+        <div className="mt-2">
             <div className="flex justify-between py-4 rounded bg-slate-50 p-3">
                 
                     <h3 className="section-title m-0">

@@ -69,7 +69,7 @@ export function GoogleDriveWidget({
 
   const connectionAbortRef = useRef<AbortController | null>(null);
   const shareAbortRef = useRef<AbortController | null>(null);
-  const [driveLinkOpen, setDriveLinkOpen] = useState(false);
+  const [driveLinkOpen, setDriveLinkOpen] = useState(true);
 
   const activeConnection = useMemo(() => {
     if (driveConnections.length === 0) return null;
@@ -227,7 +227,7 @@ export function GoogleDriveWidget({
   return (
     <div className="mb-6">
       <div className="flex justify-between py-4 my-2 rounded bg-slate-50 p-3">
-        <h3 className="section-title m-0">Google Drive Link</h3>
+        <h3 className="section-title m-0">Google Drive</h3>
         <i className={`fa-solid fa-chevron-${driveLinkOpen ? 'up' : 'down'} cursor-pointer`} onClick={toggleDriveLink} />
       </div>
       {driveLinkOpen && (

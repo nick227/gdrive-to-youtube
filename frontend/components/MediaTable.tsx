@@ -473,7 +473,6 @@ export default function MediaTable({
             const { state, mimeCategory, sizeNum, formattedDate, fullPath, stableKey, usage } =
               item._enriched;
 
-            console.log(usage)
             const jobId = state.job?.id;
             const handleCancel =
               onCancelJob && jobId != null ? () => onCancelJob(jobId) : undefined;

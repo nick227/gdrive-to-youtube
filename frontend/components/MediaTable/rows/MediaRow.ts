@@ -53,7 +53,7 @@ export function toMediaRow(item: EnrichedMediaItem): MediaRow {
   const state = item._enriched.state;
   const previewSrc =
     item.driveFileId && category !== 'other'
-      ? buildPreviewUrl(API_URL, item.driveFileId, category)
+      ? buildPreviewUrl(API_URL, item.driveFileId, category) ?? undefined
       : undefined;
 
   const { label, severity } = mapStateLabel(state.kind);

@@ -8,6 +8,15 @@ interface MediaPreviewProps {
   item: MediaItem;
 }
 
+let activeMedia: HTMLMediaElement | null = null;
+
+function handlePlay(el: HTMLMediaElement) {
+  if (activeMedia && activeMedia !== el) {
+    activeMedia.pause();
+  }
+  activeMedia = el;
+}
+
 /**
  * MediaPreview
  * Renders a small inline preview for image / audio / video
@@ -76,7 +85,8 @@ export default function MediaPreview({ item }: MediaPreviewProps) {
     return (
       <div className='w-full media-item-audio'>
         <div className='audio-label'>Audio</div>
-        <audio controls src={src} />
+        <audio controls src={src}
+          onPlay={(e) => handlePlay(e.currentTarget)} />
       </div>
     );
   }
@@ -86,6 +96,7 @@ export default function MediaPreview({ item }: MediaPreviewProps) {
       <video
         controls
         src={src}
+        onPlay={(e) => handlePlay(e.currentTarget)}
         style={{
           display: 'block',
         }}

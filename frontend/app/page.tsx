@@ -8,85 +8,100 @@ import ScheduleView from '../components/schedule/ScheduleView';
 import PendingJobsList from '../components/PendingJobsList';
 import QuickUploadModal from '../components/QuickUploadModal';
 import CreateVideoModal from '../components/CreateVideoModal';
-import { MediaItem } from '../types/api';
+import { MediaItem, UploadJob } from '../types/api';
 import { API_URL } from '../config/api';
-import { ScheduleItem } from '../components/schedule/types'
-import { UploadJob } from '../types/api'
+import { ScheduleItem } from '../components/schedule/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GoogleDriveWidget } from '../components/GoogleDriveWidget';
 import Image from 'next/image';
 
-function mapUploadJobsToScheduleItems(
-  jobs: UploadJob[]
-): ScheduleItem[] {
-  return jobs
-    .filter(j => j.scheduledFor) // schedule only
-    .map(j => {
-      const [date, time] = j.scheduledFor!.split('T')
+/* ----------------------------- helpers ----------------------------- */
 
+function mapUploadJobsToScheduleItems(jobs: UploadJob[]): ScheduleItem[] {
+  return jobs
+    .filter(j => j.scheduledFor)
+    .map(j => {
+      const [date, time] = j.scheduledFor!.split('T');
       return {
         id: j.id,
-        date,                         // YYYY-MM-DD
-        time: time?.slice(0, 5),      // HH:mm
+        date,
+        time: time?.slice(0, 5),
         title: j.title,
         status: j.youtubeVideo?.status ?? j.status,
         channelTitle: j.youtubeChannel?.title ?? null,
         privacyStatus: j.privacyStatus,
-      }
-    })
+      };
+    });
 }
 
-const HISTORY_STORAGE_KEY = 'historyOpen';
-const SCHEDULE_STORAGE_KEY = 'scheduleOpen';
+function useHydratedToggle(key: string, initial = false) {
+  const [open, setOpen] = useState(initial);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = window.localStorage.getItem(key);
+    if (raw === 'true' || raw === 'false') {
+      setOpen(raw === 'true');
+    }
+  }, [key]);
+
+  const toggle = useCallback(() => setOpen(v => !v), []);
+  return { open, toggle };
+}
+
+function usePersistedToggle(key: string, initial = false) {
+  const t = useHydratedToggle(key, initial);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(key, String(t.open));
+  }, [key, t.open]);
+
+  return t;
+}
+
+function AuthOnly({
+  user,
+  children,
+}: {
+  user: any;
+  children: React.ReactNode;
+}) {
+  if (!user) return null;
+  return <>{children}</>;
+}
+
+/* ----------------------------- page ----------------------------- */
+
+type ModalState =
+  | { type: null }
+  | { type: 'upload'; item: MediaItem }
+  | { type: 'create'; item: MediaItem };
 
 function PageContent() {
   const { user, loading: authLoading, login, logout } = useAuth();
-  const { media, uploadJobs, renderJobs, channels, loading, error, reload } = useMediaDashboard();
-  const [selectedMediaItem, setSelectedMediaItem] = useState<MediaItem | null>(null);
-  const [quickUploadOpen, setQuickUploadOpen] = useState(false);
-  const [createVideoOpen, setCreateVideoOpen] = useState(false);
-  const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
+  const { media, uploadJobs, renderJobs, channels, loading, error, reload } =
+    useMediaDashboard();
 
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const history = usePersistedToggle('historyOpen');
+  const schedule = usePersistedToggle('scheduleOpen');
+  const [aboutOpen, setAboutOpen] = useState(false);
+
+  const [modal, setModal] = useState<ModalState>({ type: null });
+
   const scheduleItems = useMemo(
     () => mapUploadJobsToScheduleItems(uploadJobs),
     [uploadJobs]
-  )
+  );
 
   const imageItems = useMemo(
-    () => media.filter((m) => m.mimeType.startsWith('image/')),
+    () => media.filter(m => m.mimeType.startsWith('image/')),
     [media]
   );
 
-  // Hydrate history toggle from localStorage
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
-    if (raw === 'true' || raw === 'false') {
-      setHistoryOpen(raw === 'true');
-    }
-  }, []);
-
-  // Hydrate schedule toggle from localStorage
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const raw = window.localStorage.getItem(SCHEDULE_STORAGE_KEY);
-    if (raw === 'true' || raw === 'false') {
-      setScheduleOpen(raw === 'true');
-    }
-  }, []);
-
-  // Persist history toggle to localStorage
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(HISTORY_STORAGE_KEY, historyOpen ? 'true' : 'false');
-  }, [historyOpen]);
-
-  // Show success after redirect from Drive OAuth
   useEffect(() => {
     const fromDrive = searchParams?.get('driveConnectionId');
     if (fromDrive) {
@@ -95,35 +110,7 @@ function PageContent() {
     }
   }, [searchParams, reload, router]);
 
-  const handleCancelJob = useCallback(async (jobId: number) => {
-    try {
-      const res = await fetch(`${API_URL}/upload-jobs/${jobId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (res.ok) {
-        reload();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        console.error('Failed to cancel job:', data.error);
-      }
-    } catch (err) {
-      console.error('Failed to cancel job:', err);
-    }
-  }, [reload]);
-
-  const closeModals = useCallback(() => {
-    setQuickUploadOpen(false);
-    setCreateVideoOpen(false);
-    setSelectedMediaItem(null);
-  }, []);
-
-  const handleModalSuccess = useCallback(() => {
-    closeModals();
-    reload();
-  }, [closeModals, reload]);
-
-  const requireAuthThen = useCallback(
+  const requireAuth = useCallback(
     (fn: () => void) => {
       if (!user) {
         login();
@@ -134,35 +121,33 @@ function PageContent() {
     [user, login]
   );
 
-  const openUploadModal = useCallback(
-    (item: MediaItem) =>
-      requireAuthThen(() => {
-        setSelectedMediaItem(item);
-        setQuickUploadOpen(true);
-      }),
-    [requireAuthThen]
+  const handleCancelJob = useCallback(
+    async (jobId: number) => {
+      try {
+        const res = await fetch(`${API_URL}/upload-jobs/${jobId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+
+        if (res.ok) {
+          reload();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          console.error('Failed to cancel job:', data.error);
+        }
+      } catch (err) {
+        console.error('Failed to cancel job:', err);
+      }
+    },
+    [reload]
   );
 
-  const openCreateVideoModal = useCallback(
-    (item: MediaItem) =>
-      requireAuthThen(() => {
-        setSelectedMediaItem(item);
-        setCreateVideoOpen(true);
-      }),
-    [requireAuthThen]
-  );
+  const closeModal = () => setModal({ type: null });
 
-  const toggleSchedule = useCallback(() => {
-    setScheduleOpen((prev) => !prev);
-  }, []);
-
-  const toggleHistory = useCallback(() => {
-    setHistoryOpen((prev) => !prev);
-  }, []);
-
-  const toggleAbout = useCallback(() => {
-    setAboutOpen((prev) => !prev);
-  }, []);
+  const handleModalSuccess = () => {
+    closeModal();
+    reload();
+  };
 
   if (authLoading || loading) {
     return (
@@ -187,43 +172,45 @@ function PageContent() {
 
   return (
     <main className="page-container">
-      <div className="section-header">
-        <h1 title="YouTube Upload Manager" className="text-2xl">YUM</h1>
-        <div className='flex gap-2'>
-          <div className="flex items-center gap-3">
-            {user && (
-              <a
-                className="btn-link whitespace-nowrap"
-                href={`${API_URL}/channels/auth-url?userId=${user.id}`}
-                target="_blank"
-                rel="noreferrer"
-              >Account +</a>
-            )}
-            {user && channels && (
-              <>
-                {channels.map((channel) => (
-                  <span className='p-2 mx-2 bg-amber-50' key={channel.id}>
-                    {channel.title ?? channel.channelId}
-                  </span>
-                ))}
-              </>
-            )}
-          </div>
+      {/* Header */}
+      <div className="section-header flex justify-between mb-4">
+        <h1 className="text-2xl logo-text">YUM</h1>
+
+        <div className="flex gap-2 items-center">
+          {user && (
+            <a
+              className="btn-link"
+              href={`${API_URL}/channels/auth-url?userId=${user.id}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Account +
+            </a>
+          )}
+
+          {user &&
+            Array.isArray(channels) &&
+            channels.map(c => (
+              <span key={c.id} className="p-2 bg-amber-50">
+                {c.title ?? c.channelId}
+              </span>
+            ))}
+
           {user ? (
-            <div className='flex'>
+            <>
               {user.avatarUrl && (
                 <Image
-                  className="user-avatar rounded-full mr-2"
                   src={user.avatarUrl}
                   alt={user.name ?? user.email}
                   width={32}
                   height={32}
+                  className="rounded-full"
                 />
               )}
               <button className="btn btn-secondary" onClick={logout}>
                 Logout
               </button>
-            </div>
+            </>
           ) : (
             <button className="btn btn-login" onClick={login}>
               Sign in with Google
@@ -233,133 +220,122 @@ function PageContent() {
       </div>
 
       {!user && (
-        <div className="alert alert-info mt-4 mb-2">
-          Sign in to create upload jobs and manage your videos.
+        <div className="alert alert-info mt-4">
+          Sign in to create upload jobs and manage videos.
         </div>
       )}
 
-      {user && channels.length === 0 && (
+      {user && Array.isArray(channels) && channels.length === 0 && (
         <div className="alert alert-warning">
           No YouTube channels connected
         </div>
       )}
 
-      <div className='flex justify-between py-4  rounded bg-slate-50 p-3'>
-        <h3 className='section-title m-0'>About site</h3>
-        <i className={`cursor-pointer fa-solid fa-chevron-${aboutOpen ? 'up' : 'down'}`} onClick={toggleAbout} />
+      <AuthOnly user={user}>
+
+      {/* About */}
+      <div
+        onClick={() => setAboutOpen(v => !v)}
+        className="flex justify-between bg-slate-50 p-3 cursor-pointer"
+      >
+        <h3 className="section-title m-0">About site</h3>
+        <i
+          className={`fa-solid fa-chevron-${aboutOpen ? 'up' : 'down'}`}
+        />
       </div>
+
       {aboutOpen && (
-        <div className="py-2 mb-4 site-info">
-          <div className='flex flex-col justify-center text-center'>
-            <h1 className='text-9xl'>YUM</h1>
-            <h3>YouTube Upload Manager</h3>
-          <p className='text-xl my-4'>
-            Pulls media from Google Drive and uploads it to YouTube
+        <div className="text-center py-6">
+          <h1 className="text-9xl">YUM</h1>
+          <p className="text-xl my-4">
+            Pulls media from Google Drive and uploads to YouTube
           </p>
-          <ul className="list-disc list-inside space-y-2 text-xl">
-            <li className='pb-4'>Sign in with Google</li>
-            <li className='pb-4'>Connect YouTube channel</li>
-            <li className='pb-4'>Link Google Drive</li>
-            <li className='pb-4'>Combine images and audio</li>
-            <li className='pb-4'>Upload to YouTube</li>
-            <li className='pb-4'>Share Drive ID</li>
-          </ul>
-          </div>
+          <ul className="list-disc list-inside space-y-2 text-xl"> <li className='pb-4'>Sign in with Google</li> <li className='pb-4'>Connect YouTube channel</li> <li className='pb-4'>Link Google Drive</li> <li className='pb-4'>Combine media and render videos</li> <li className='pb-4'>Upload to YouTube</li> </ul>
         </div>
       )}
 
-      <div className='flex justify-between'>
+        <GoogleDriveWidget
+          userId={user?.id ?? null}
+          onRequireAuth={login}
+          onReload={reload}
+          driveConnectionIdFromQuery={searchParams?.get('driveConnectionId')}
+        />
 
-        {user && (
-          <div className="history-panel">
-            <PendingJobsList
-              uploadJobs={uploadJobs}
-              renderJobs={renderJobs}
-              onRefresh={reload}
-              onToggle={toggleHistory}
-              isOpen={!historyOpen}
-            />
+        <div
+          onClick={schedule.toggle}
+          className="flex justify-between bg-slate-50 p-3 mt-2 cursor-pointer"
+        >
+          <h3 className="section-title m-0">Schedule</h3>
+          <i
+            className={`fa-solid fa-chevron-${schedule.open ? 'up' : 'down'}`}
+          />
+        </div>
+
+        {schedule.open && (
+          <div className="mb-8 mt-2">
+            <ScheduleView items={scheduleItems} />
           </div>
         )}
 
-      </div>
+        <PendingJobsList
+          uploadJobs={uploadJobs}
+          renderJobs={renderJobs}
+          onRefresh={reload}
+          onToggle={history.toggle}
+          isOpen={!history.open}
+        />
 
-      {user && (
-        <>
-          <div className='flex justify-between py-4 my-2 rounded bg-slate-50 p-3'>
-            <h3 className='section-title m-0'>Schedule</h3>
-            <i className={`cursor-pointer fa-solid fa-chevron-${scheduleOpen ? 'up' : 'down'}`} onClick={toggleSchedule} />
-          </div>
-          {scheduleOpen && (
-            <div className="pb-4 mb-8">
-              <ScheduleView items={scheduleItems} />
-            </div>
-          )}
-        </>
-      )}
-
-      {user && (
-        <section className="section">
-          <GoogleDriveWidget
-            userId={user?.id ?? null}
-            onRequireAuth={login}
-            onReload={reload}
-            driveConnectionIdFromQuery={searchParams?.get('driveConnectionId')}
-          />
-
+        <div className="my-8">
           <MediaTable
             media={media}
             uploadJobs={uploadJobs}
             renderJobs={renderJobs}
-            onPostToYouTube={openUploadModal}
-            onCreateVideo={openCreateVideoModal}
+            onPostToYouTube={item =>
+              requireAuth(() => setModal({ type: 'upload', item }))
+            }
+            onCreateVideo={item =>
+              requireAuth(() => setModal({ type: 'create', item }))
+            }
             onCancelJob={handleCancelJob}
           />
-        </section>
-      )}
+        </div>
 
-
-      {user && (
         <QuickUploadModal
-          isOpen={quickUploadOpen}
-          mediaItem={selectedMediaItem}
+          isOpen={modal.type === 'upload'}
+          mediaItem={modal.type === 'upload' ? modal.item : null}
           channels={channels}
-          onClose={closeModals}
+          onClose={closeModal}
           onSuccess={handleModalSuccess}
         />
-      )}
 
-      {user && (
         <CreateVideoModal
-          isOpen={createVideoOpen}
+          isOpen={modal.type === 'create'}
           audioItem={
-            selectedMediaItem && selectedMediaItem.mimeType.startsWith('audio/')
-              ? selectedMediaItem
+            modal.type === 'create' &&
+              modal.item.mimeType.startsWith('audio/')
+              ? modal.item
               : null
           }
           initialImageId={
-            selectedMediaItem && selectedMediaItem.mimeType.startsWith('image/')
-              ? selectedMediaItem.id
+            modal.type === 'create' &&
+              modal.item.mimeType.startsWith('image/')
+              ? modal.item.id
               : undefined
           }
           imageItems={imageItems}
-          onClose={closeModals}
+          onClose={closeModal}
           onSuccess={handleModalSuccess}
         />
-      )}
+      </AuthOnly>
 
-      {!user && (
-        <div>
-          Hey everybody
-        </div>
-      )}
+      {!user && <div>Hey everybody</div>}
     </main>
   );
 }
 
 export default function Page() {
   return (
-    <Suspense fallback={<main className="page-container"><p>Loading...</p></main>}>
+    <Suspense fallback={<main className="page-container">Loading...</main>}>
       <PageContent />
     </Suspense>
   );

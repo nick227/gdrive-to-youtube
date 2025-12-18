@@ -22,7 +22,7 @@ type SortDir = 'asc' | 'desc';
 type MimeTypeFilter = 'image' | 'video' | 'audio';
 
 const SORTABLE_COLUMNS: { key: SortKey; label: string }[] = [
-  { key: 'name', label: 'File Name' },
+  { key: 'name', label: 'Name' },
   { key: 'folderPath', label: 'Path' },
   { key: 'createdAt', label: 'Created' },
   { key: 'mimeType', label: 'Type' },

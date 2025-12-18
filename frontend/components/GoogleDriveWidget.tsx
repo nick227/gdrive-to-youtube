@@ -69,7 +69,7 @@ export function GoogleDriveWidget({
 
   const connectionAbortRef = useRef<AbortController | null>(null);
   const shareAbortRef = useRef<AbortController | null>(null);
-  const [driveLinkOpen, setDriveLinkOpen] = useState(true);
+  const [driveLinkOpen, setDriveLinkOpen] = useState(false);
 
   const activeConnection = useMemo(() => {
     if (driveConnections.length === 0) return null;
@@ -225,10 +225,10 @@ export function GoogleDriveWidget({
   }, [userId, driveFolderInput, onRequireAuth]);
 
   return (
-    <div className="mb-6">
-      <div className="flex justify-between py-4 my-2 rounded bg-slate-50 p-3">
+    <div className="mb-2">
+      <div onClick={toggleDriveLink} className="flex justify-between my-2 rounded bg-slate-50 p-3 cursor-pointer">
         <h3 className="section-title m-0">Google Drive</h3>
-        <i className={`fa-solid fa-chevron-${driveLinkOpen ? 'up' : 'down'} cursor-pointer`} onClick={toggleDriveLink} />
+        <i className={`fa-solid fa-chevron-${driveLinkOpen ? 'up' : 'down'} cursor-pointer`} />
       </div>
       {driveLinkOpen && (
         <>
@@ -251,6 +251,7 @@ export function GoogleDriveWidget({
 
           <div className="flex gap-2">
             <input
+              type="text"
               className="input flex-1"
               value={driveFolderInput}
               placeholder="Drive folder ID or URL"

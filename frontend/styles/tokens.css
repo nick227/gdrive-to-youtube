@@ -75,9 +75,9 @@
   /* Layout */
   --max-width-item: 300px;
   --max-height-item: 360px;
-  --max-width-page: 60vw;
+  --max-width-page: 35vw;
   --max-width-modal: 480px;
-  --body-grid-template-columns: repeat(5, minmax(0, 1fr));
+  --body-grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 

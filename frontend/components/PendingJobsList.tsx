@@ -131,12 +131,12 @@ export default function PendingJobsList({
 
     return (
         <div className="mt-2">
-            <div className="flex justify-between py-4 rounded bg-slate-50 p-3">
+            <div onClick={onToggle} className="flex justify-between rounded bg-slate-50 p-3 cursor-pointer">
                 
                     <h3 className="section-title m-0">
                         History {rows.length > 0 && `(${rows.length})`}
                     </h3>
-                        <i onClick={onToggle} className={`cursor-pointer fa-solid ${!isOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+                        <i className={`cursor-pointer fa-solid ${!isOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
             </div>
             {!isOpen && (
                 <div className="d-flex flex-column gap-2 item-list h-60 overflow-y-auto">

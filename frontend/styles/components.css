@@ -13,6 +13,12 @@ input[type="text"]:focus {
   border-color: var(--color-accent);
 }
 
+.logo-text {
+  border: 1px solid transparent;
+  padding: 3px 6px;
+  font-family: 'Courier New', Courier, monospace;
+}
+
 
 /* --------------------------------------------------------------------------
    Buttons
@@ -94,7 +100,7 @@ input[type="text"]:focus {
 }
 
 .btn-ghost {
-  padding: 3px 4px 7px 4px  ;
+  padding: 3px 4px 7px 4px;
   width: 20px;
   height: 20px;
   border-radius: 5px;
@@ -274,12 +280,6 @@ input[type="text"]:focus {
   margin-bottom: var(--space-xl);
 }
 
-.section-header {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
 .section-title {
   font-size: var(--font-size-lg);
   margin: 0;
@@ -304,29 +304,3 @@ input[type="text"]:focus {
 .text-success {
   color: var(--color-success-text);
 }
-
-.text-sm {
-  font-size: var(--font-size-sm);
-}
-
-.text-xs {
-  font-size: var(--font-size-xs);
-}
-
-.mt-sm {
-  margin-top: var(--space-sm);
-}
-
-.mt-md {
-  margin-top: var(--space-md);
-}
-
-.mr-xs {
-  margin-right: var(--space-xs);
-}
-
-
-
-
-
-

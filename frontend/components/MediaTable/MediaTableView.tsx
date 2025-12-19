@@ -42,13 +42,12 @@ export default function MediaTableView({
             <tr key={row.key}>
               <td>
                 <div className="flex items-center gap-2">
-                  <MediaRowIcon category={row.mime} />
                   <div className="min-w-0">
                     <div className="line-clamp-1" title="{row.path}">{row.path}</div>
                   </div>
                 </div>
               </td>
-              <td>{row.mimeType}</td>
+              <td><MediaRowIcon category={row.mime} /> {row.mimeType}</td>
               <td>{formatBytes(row.sizeBytes)}</td>
               <td>{formatDate(row.createdAt)}</td>
               <td>

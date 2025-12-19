@@ -17,6 +17,38 @@ const server = app.listen(port, () => {
   }
 });
 
+const API_ACTIVITY_PREFIXES = [
+  '/auth',
+  '/media',
+  '/videos',
+  '/channels',
+  '/media-preview',
+  '/drive',
+  '/upload-jobs',
+  '/render-jobs',
+];
+
+const shouldCountForActivity = (req: { path?: string; method?: string }): boolean => {
+  const path = req.path || '';
+  if (req.method === 'OPTIONS') return false;
+
+  // Ignore static/Next assets and service worker probes
+  if (
+    path.startsWith('/_next') ||
+    path.startsWith('/static') ||
+    path.startsWith('/favicon') ||
+    path.startsWith('/workbox') ||
+    path.startsWith('/dev-sw') ||
+    path.endsWith('.js') ||
+    path.endsWith('.css') ||
+    path.endsWith('.svg')
+  ) {
+    return false;
+  }
+
+  return API_ACTIVITY_PREFIXES.some(prefix => path.startsWith(prefix));
+};
+
   const touchSchedulerActivity = () => {
     if (!SHOULD_RUN_SCHEDULER) return;
 
@@ -33,13 +65,15 @@ const server = app.listen(port, () => {
     }, INACTIVITY_MS);
   };
 
-  // Track traffic and drive scheduler lifecycle
-  if (SHOULD_RUN_SCHEDULER) {
-    app.use((req, _res, next) => {
+// Track traffic and drive scheduler lifecycle (ignore static noise)
+if (SHOULD_RUN_SCHEDULER) {
+  app.use((req, _res, next) => {
+    if (shouldCountForActivity(req)) {
       touchSchedulerActivity();
-      next();
-    });
-  }
+    }
+    next();
+  });
+}
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {

@@ -13,12 +13,6 @@ input[type="text"]:focus {
   border-color: var(--color-accent);
 }
 
-.logo-text {
-  border: 1px solid transparent;
-  padding: 3px 6px;
-  font-family: 'Courier New', Courier, monospace;
-}
-
 
 /* --------------------------------------------------------------------------
    Buttons

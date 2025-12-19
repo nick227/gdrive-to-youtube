@@ -98,15 +98,24 @@ const stopHeartbeat = () => {
   }
 };
 
-const createTasks = (): ScheduledTask[] => ([
-  // Drive sync every minute
-  cron.schedule('* * * * *', async () => {
-    if (!acceptingWork) return;
+let syncDriveRunning = false;
 
+const createTasks = (): ScheduledTask[] => ([
+  // Drive sync every 5 minutes with in-memory lock to avoid overlap
+  cron.schedule('*/5 * * * *', async () => {
+    if (!acceptingWork) return;
+    if (syncDriveRunning) {
+      console.log('[Scheduler] Drive sync skipped (already running)');
+      return;
+    }
+
+    syncDriveRunning = true;
     try {
       await syncDrive();
     } catch (err) {
       console.error('[Scheduler] Drive sync failed', err);
+    } finally {
+      syncDriveRunning = false;
     }
   }),
 

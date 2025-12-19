@@ -1,6 +1,5 @@
 import { MediaRow } from './rows/MediaRow';
 import MediaRowActions from './rows/MediaRowActions';
-import MediaRowIcon from './rows/MediaRowIcon';
 import MediaRowMeta from './rows/MediaRowMeta';
 import MediaRowPreview from './rows/MediaRowPreview';
 import MediaRowStatus from './rows/MediaRowStatus';
@@ -22,7 +21,6 @@ export default function MediaListView({
     <div className="media-list-body d-flex flex-column gap-2">
       {rows.map(row => (
         <div key={row.key} className={`media-item ${row.mime}`}>
-          <MediaRowIcon category={row.mime} />
           <MediaRowPreview row={row} />
           <MediaRowMeta path={row.path} compactStatus={row.compactStatus} category={row.mime} />
 

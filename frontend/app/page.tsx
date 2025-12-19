@@ -88,6 +88,7 @@ function PageContent() {
 
   const history = usePersistedToggle('historyOpen');
   const schedule = usePersistedToggle('scheduleOpen');
+  const youtube = usePersistedToggle('youtubeOpen');
   const [aboutOpen, setAboutOpen] = useState(false);
 
   const [modal, setModal] = useState<ModalState>({ type: null });
@@ -152,8 +153,7 @@ function PageContent() {
   if (authLoading || loading) {
     return (
       <main className="page-container">
-        <h1 className="text-2xl">YUM..</h1>
-        <p>Loading...</p>
+        <h1 className="text-2xl">YUM</h1>
       </main>
     );
   }
@@ -161,7 +161,7 @@ function PageContent() {
   if (error) {
     return (
       <main className="page-container">
-        <h1 className="text-2xl">YUM?</h1>
+        <h1 className="text-2xl">YUM</h1>
         <p className="text-error">{error}</p>
         <button className="btn btn-secondary mt-md" onClick={reload}>
           Retry
@@ -174,27 +174,9 @@ function PageContent() {
     <main className="page-container">
       {/* Header */}
       <div className="section-header flex justify-between mb-4">
-        <h1 className="text-2xl logo-text">YUM</h1>
+        <h1 className="text-2xl">YUM</h1>
 
         <div className="flex gap-2 items-center">
-          {user && (
-            <a
-              className="btn-link"
-              href={`${API_URL}/channels/auth-url?userId=${user.id}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Account +
-            </a>
-          )}
-
-          {user &&
-            Array.isArray(channels) &&
-            channels.map(c => (
-              <span key={c.id} className="p-2 bg-amber-50">
-                {c.title ?? c.channelId}
-              </span>
-            ))}
 
           {user ? (
             <>
@@ -233,26 +215,65 @@ function PageContent() {
 
       <AuthOnly user={user}>
 
-      {/* About */}
-      <div
-        onClick={() => setAboutOpen(v => !v)}
-        className="flex justify-between bg-slate-50 p-3 cursor-pointer"
-      >
-        <h3 className="section-title m-0">About site</h3>
-        <i
-          className={`fa-solid fa-chevron-${aboutOpen ? 'up' : 'down'}`}
-        />
-      </div>
-
-      {aboutOpen && (
-        <div className="text-center py-6">
-          <h1 className="text-9xl">YUM</h1>
-          <p className="text-xl my-4">
-            Pulls media from Google Drive and uploads to YouTube
-          </p>
-          <ul className="list-disc list-inside space-y-2 text-xl"> <li className='pb-4'>Sign in with Google</li> <li className='pb-4'>Connect YouTube channel</li> <li className='pb-4'>Link Google Drive</li> <li className='pb-4'>Combine media and render videos</li> <li className='pb-4'>Upload to YouTube</li> </ul>
+        {/* About */}
+        <div
+          onClick={() => setAboutOpen(v => !v)}
+          className="flex justify-between bg-slate-50 p-3 cursor-pointer"
+        >
+          <h3 className="section-title m-0">About site</h3>
+          <i
+            className={`fa-solid fa-chevron-${aboutOpen ? 'up' : 'down'}`}
+          />
         </div>
-      )}
+
+        {aboutOpen && (
+          <div className="text-center py-6">
+            <h2 className="text-9xl">YUM</h2>
+            <p className="text-xl my-4">
+              Pulls media from Google Drive and uploads to YouTube
+            </p>
+            <ul className="list-disc list-inside space-y-2 text-xl"> <li className='pb-4'>Sign in with Google</li> <li className='pb-4'>Connect YouTube channel</li> <li className='pb-4'>Link Google Drive</li> <li className='pb-4'>Combine media and render videos</li> <li className='pb-4'>Upload to YouTube</li> </ul>
+            <div>
+
+            </div>
+          </div>
+        )}
+
+
+
+
+
+        <div
+          onClick={youtube.toggle}
+          className="flex justify-between bg-slate-50 p-3 mt-2 cursor-pointer"
+        >
+          <h3 className="section-title m-0">YouTube</h3>
+          <i
+            className={`fa-solid fa-chevron-${youtube.open ? 'up' : 'down'}`}
+          />
+        </div>
+        {user && youtube.open && (
+          <div className="py-6">
+            <h3>Linked Accounts:</h3>
+            <ul>
+              {user &&
+                Array.isArray(channels) &&
+                channels.map(c => (
+                  <li key={c.id}>
+                    {c.title ?? c.channelId}
+                  </li>
+                ))}
+            </ul>
+            <a
+              className="btn-link"
+              href={`${API_URL}/channels/auth-url?userId=${user.id}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Add New +
+            </a>
+          </div>
+        )}
 
         <GoogleDriveWidget
           userId={user?.id ?? null}

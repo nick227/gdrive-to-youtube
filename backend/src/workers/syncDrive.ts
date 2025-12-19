@@ -196,7 +196,7 @@ export async function syncDrive(): Promise<SyncStats> {
 
   try {
     for (const connection of connections) {
-      console.log('Syncing files from Drive connection:', connection.id, connection.rootFolderId);
+      console.log('[syncDrive] start', { connectionId: connection.id, root: connection.rootFolderId });
       const seenIds = new Set<string>();
       const folderCacheForConnection = new Map<string, string>();
 
@@ -210,6 +210,7 @@ export async function syncDrive(): Promise<SyncStats> {
         }
 
         const files = await fetchAllDescendantFiles(drive, connection.rootFolderId);
+        console.log('[syncDrive] fetched files', { connectionId: connection.id, count: files.length });
 
         for (const file of files) {
           if (!file.id) continue;
@@ -229,11 +230,13 @@ export async function syncDrive(): Promise<SyncStats> {
         const markedMissing = await markMissingFiles(seenIds, connection.id);
         totalUpserted += seenIds.size;
         totalMissing += markedMissing;
-        console.log(
-          `Sync complete for connection ${connection.id}. Upserted ${seenIds.size} file(s); marked ${markedMissing} missing.`
-        );
+        console.log('[syncDrive] complete', {
+          connectionId: connection.id,
+          upserted: seenIds.size,
+          markedMissing,
+        });
       } catch (err) {
-        console.error(`Error during Drive sync for connection ${connection.id}:`, err);
+        console.error(`[syncDrive] error for connection ${connection.id}:`, err);
         await markDriveConnectionStatus(
           connection.id,
           DriveConnectionStatus.ERROR,
@@ -249,8 +252,6 @@ export async function syncDrive(): Promise<SyncStats> {
   } catch (error) {
     console.error('Error during Drive sync:', error);
     throw error;
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -259,10 +260,10 @@ if (require.main === module) {
   syncDrive()
     .then((stats) => {
       console.log('Sync completed successfully:', stats);
-      process.exit(0);
+      prisma.$disconnect().finally(() => process.exit(0));
     })
     .catch((error) => {
       console.error('Sync failed:', error);
-      process.exit(1);
+      prisma.$disconnect().finally(() => process.exit(1));
     });
 }

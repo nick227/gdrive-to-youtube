@@ -383,26 +383,4 @@ const gracefulShutdown = async (signal: string) => {
   }
 };
 
-process.on("SIGTERM", () => {
-  void gracefulShutdown("SIGTERM");
-});
-process.on("SIGINT", () => {
-  void gracefulShutdown("SIGINT");
-});
-
-process.on("uncaughtException", (err) => {
-  console.error("FATAL - Uncaught Exception:", err);
-  console.error("Process state corrupted. Exiting immediately.");
-  process.exit(1);
-});
-
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("Unhandled Rejection at:", promise, "reason:", reason);
-  void gracefulShutdown("UNHANDLED_REJECTION");
-});
-
-/* =============================================================================
-   EXPORT
-============================================================================= */
-
 export default app;

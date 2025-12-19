@@ -6,11 +6,16 @@
   const INACTIVITY_MS = Number(process.env.SCHEDULER_INACTIVITY_MS ?? 5 * 60 * 1000); // 5 minutes
   let idleTimer: NodeJS.Timeout | null = null;
 
-  const port = process.env.SERVER_PORT || process.env.PORT || 4000;
+const port = process.env.SERVER_PORT || process.env.PORT || 4000;
 
-  const server = app.listen(port, () => {
-    console.log(`Backend listening on port ${port}`);
-  });
+const server = app.listen(port, () => {
+  console.log(`Backend listening on port ${port}`);
+
+  // Kick the scheduler once on boot so media sync starts even before traffic arrives.
+  if (SHOULD_RUN_SCHEDULER && !isSchedulerRunning()) {
+    void startScheduler();
+  }
+});
 
   const touchSchedulerActivity = () => {
     if (!SHOULD_RUN_SCHEDULER) return;

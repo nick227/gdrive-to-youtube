@@ -14,10 +14,8 @@ export default function MediaRowMeta({ path, compactStatus, category }: Props) {
       <span title={path} className="min-w-0 line-clamp-3 break-all items-baseline-start">
         <MediaRowIcon category={category} /> {path}
       </span>
-      {compactStatus ? (
-        <div className="text-xs whitespace-nowrap">{compactStatus}</div>
-      ) : (
-        <div className="text-xs whitespace-nowrap">&nbsp;</div>
+      {compactStatus && (
+        <div className="text-xs whitespace-nowrap mt-6">{compactStatus}</div>
       )}
     </div>
   );

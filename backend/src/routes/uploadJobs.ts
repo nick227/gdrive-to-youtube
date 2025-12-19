@@ -68,20 +68,24 @@ router.get('/', async (req, res) => {
   try {
     const user = getCurrentUser(req);
     
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
     // Filter by user if authenticated
     const whereClause = user ? { requestedByUserId: user.id } : {};
-    
+
     const jobs = await prisma.uploadJob.findMany({
       where: whereClause,
       orderBy: { createdAt: 'desc' },
       take: 100,
-    include: {
-      mediaItem: true,
-      youtubeChannel: true,
-      requestedByUser: true,
-    },
+      include: {
+        mediaItem: true,
+        youtubeChannel: true,
+        requestedByUser: true,
+      },
     });
-    
+
     const serializedJobs = jobs.map(job => ({
       ...job,
       mediaItem: job.mediaItem ? {
@@ -92,7 +96,7 @@ router.get('/', async (req, res) => {
         ? { id: job.requestedByUser.id, email: job.requestedByUser.email, name: job.requestedByUser.name }
         : null,
     }));
-    
+
     console.log('[upload-jobs] user', user ? user.id : null, 'jobs', serializedJobs.length);
     res.json(serializedJobs);
   } catch (err) {

@@ -69,7 +69,7 @@ export default function MediaToolbar({
           className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => onViewChange(viewMode === 'list' ? 'table' : 'list')}
         >
-          View
+          Grid
         </button>
     </div>
   );

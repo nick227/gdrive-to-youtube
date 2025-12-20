@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { MonthHeader } from './MonthHeader'
 import { MonthView } from './MonthView'
-import { DayView } from './DayView'
 import { ScheduleItem } from './types'
 
 type ViewMode = 'month' | 'day'
@@ -28,16 +27,6 @@ export default function ScheduleView({ items }: Props) {
     }, {})
   }, [items])
 
-  if (view === 'day' && selectedDate) {
-    return (
-      <DayView
-        date={selectedDate}
-        items={itemsByDay[selectedDate] ?? []}
-        onBack={() => setView('month')}
-      />
-    )
-  }
-
   return (
     <div>
       <MonthHeader
@@ -53,7 +42,6 @@ export default function ScheduleView({ items }: Props) {
         itemsByDay={itemsByDay}
         onOpenDay={(d) => {
           setSelectedDate(d)
-          setView('day')
         }}
       />
     </div>

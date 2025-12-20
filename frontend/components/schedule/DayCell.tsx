@@ -15,7 +15,7 @@ export function DayCell({ date, day, items, onOpen }: Props) {
       tabIndex={0}
       onClick={() => onOpen(date)}
       onKeyDown={e => e.key === 'Enter' && onOpen(date)}
-      className={`p-2 h-32 cursor-pointer ${isToday(date) ? 'bg-cyan-50' : 'bg-white'}`}
+      className={`p-2 h-24 ${isToday(date) ? 'bg-cyan-50' : 'bg-white'}`}
     >
       <div className="text-xs text-neutral-500 mb-1">{day}</div>
       {items.slice(0, MAX_ITEMS_PER_DAY).map(i => (

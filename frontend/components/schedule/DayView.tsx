@@ -9,14 +9,15 @@ interface Props {
 
 export function DayView({ date, items, onBack }: Props) {
   return (
-    <div className='p-4'>
+    <div className='p-4 h-100'>
       <button onClick={onBack} className="mb-3 text-2xl cursor-pointer">← Back</button>
       <div className="text-3xl text-neutral-500 bg-gray-50">
         {new Date(date).toDateString()}
       </div>
 
       {items.length === 0 && (
-          <div className="bg-amber-200  text-neutral-400 text-6xl">No uploads scheduled</div>
+          <div className="mt-4 text-xl">No uploads scheduled</div>
+
       )}
 
       <div className="divide-y">

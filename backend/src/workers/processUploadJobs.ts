@@ -23,7 +23,7 @@ function formatError(err: unknown): string {
 export async function processUploadJob(job: UploadJobWithRelations): Promise<void> {
   // Claim the job atomically; skip if already processed
   const claimed = await prisma.uploadJob.updateMany({
-    where: { id: job.id, status: 'PENDING' },
+    where: { id: job.id, status: { in: ['PENDING', 'RUNNING'] } },
     data: { status: 'RUNNING' },
   });
   if (claimed.count === 0) {

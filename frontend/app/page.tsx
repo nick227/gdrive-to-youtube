@@ -89,7 +89,7 @@ function PageContent() {
   const history = usePersistedToggle('historyOpen');
   const schedule = usePersistedToggle('scheduleOpen');
   const youtube = usePersistedToggle('youtubeOpen');
-  const [aboutOpen, setAboutOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(true);
 
   const [modal, setModal] = useState<ModalState>({ type: null });
 
@@ -150,13 +150,31 @@ function PageContent() {
     reload();
   };
 
-  if (authLoading || loading) {
-    return (
-      <main className="page-container">
-        <h1 className="text-2xl">YUM</h1>
-      </main>
-    );
-  }
+  const triggerQueue = useCallback(
+    async (tasks: string[]) => {
+      try {
+        const res = await fetch(`${API_URL}/job-queue/trigger`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tasks }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        alert(`Triggered: ${tasks.join(', ')}`);
+      } catch (err) {
+        console.error('Job queue trigger failed', err);
+        alert(`Failed: ${String(err)}`);
+      }
+    },
+    []
+  );
+
+  const handleSyncMedia = () => requireAuth(() => triggerQueue(['sync']));
+  const handleProcessJobs = () =>
+    requireAuth(() => triggerQueue(['uploads', 'renders']));
 
   if (error) {
     return (
@@ -177,6 +195,16 @@ function PageContent() {
         <h1 className="text-2xl">YUM</h1>
 
         <div className="flex gap-2 items-center">
+          {user && (
+            <>
+              <button className="btn btn-secondary" onClick={handleSyncMedia}>
+                Sync Media
+              </button>
+              <button className="btn btn-secondary" onClick={handleProcessJobs}>
+                Process Jobs
+              </button>
+            </>
+          )}
 
           {user ? (
             <>
@@ -220,67 +248,62 @@ function PageContent() {
           onClick={() => setAboutOpen(v => !v)}
           className="flex justify-between bg-slate-50 p-3 cursor-pointer"
         >
-          <h3 className="section-title m-0">About site</h3>
+          <h3 className="section-title m-0">Setup</h3>
           <i
             className={`fa-solid fa-chevron-${aboutOpen ? 'up' : 'down'}`}
           />
         </div>
 
         {aboutOpen && (
-          <div className="text-center py-6">
-            <h2 className="text-9xl">YUM</h2>
-            <p className="text-xl my-4">
-              Pulls media from Google Drive and uploads to YouTube
-            </p>
-            <ul className="list-disc list-inside space-y-2 text-xl"> <li className='pb-4'>Sign in with Google</li> <li className='pb-4'>Connect YouTube channel</li> <li className='pb-4'>Link Google Drive</li> <li className='pb-4'>Combine media and render videos</li> <li className='pb-4'>Upload to YouTube</li> </ul>
+          <div className="grid-cols-3 py-6">
+            {/* section */}
             <div>
-
+              <h2 className="text-9xl">YUM</h2>
+              <p className="text-xl my-4 underline">
+                YouTube Upload Manager
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-xl"> <li className='pb-4'>Sign in with Google</li> <li className='pb-4'>Connect YouTube channel</li> <li className='pb-4'>Link Google Drive</li> <li className='pb-4'>Combine media and render videos</li> <li className='pb-4'>Upload to YouTube</li> </ul>
             </div>
+            {/* section */}
+            <div>
+              <div className="py-6">
+                <h3>Linked Accounts:</h3>
+                <ul>
+                  {user &&
+                    Array.isArray(channels) &&
+                    channels.map(c => (
+                      <li key={c.id}>
+                        {c.title ?? c.channelId}
+                      </li>
+                    ))}
+                </ul>
+
+                {user &&
+                  <a
+                    className="btn-link"
+                    href={`${API_URL}/channels/auth-url?userId=${user.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Add New +
+                  </a>
+                }
+              </div>
+            </div>
+            {/* section */}
+            {user &&
+              <div>
+
+                <GoogleDriveWidget
+                  userId={user?.id ?? null}
+                  onRequireAuth={login}
+                  onReload={reload}
+                  driveConnectionIdFromQuery={searchParams?.get('driveConnectionId')}
+                />
+              </div>
+            }
           </div>
         )}
-
-
-
-
-
-        <div
-          onClick={youtube.toggle}
-          className="flex justify-between bg-slate-50 p-3 mt-2 cursor-pointer"
-        >
-          <h3 className="section-title m-0">YouTube</h3>
-          <i
-            className={`fa-solid fa-chevron-${youtube.open ? 'up' : 'down'}`}
-          />
-        </div>
-        {user && youtube.open && (
-          <div className="py-6">
-            <h3>Linked Accounts:</h3>
-            <ul>
-              {user &&
-                Array.isArray(channels) &&
-                channels.map(c => (
-                  <li key={c.id}>
-                    {c.title ?? c.channelId}
-                  </li>
-                ))}
-            </ul>
-            <a
-              className="btn-link"
-              href={`${API_URL}/channels/auth-url?userId=${user.id}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Add New +
-            </a>
-          </div>
-        )}
-
-        <GoogleDriveWidget
-          userId={user?.id ?? null}
-          onRequireAuth={login}
-          onReload={reload}
-          driveConnectionIdFromQuery={searchParams?.get('driveConnectionId')}
-        />
 
         <div
           onClick={schedule.toggle}

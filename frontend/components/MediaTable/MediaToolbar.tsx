@@ -30,7 +30,7 @@ export default function MediaToolbar({
 }: Props) {
   return (
     <div
-      className="flex align-items-center gap-3 mb-4"
+      className="flex align-items-center gap-3 mb-4 flex-wrap"
       role="toolbar"
       aria-label="Media filters and sorting"
     >
@@ -42,28 +42,21 @@ export default function MediaToolbar({
         className="mr-4"
       />
 
-      {(['image', 'video', 'audio'] as MimeTypeFilter[]).map(type => (
-        <button
-          key={type}
-          type="button"
-          aria-pressed={mimeFilters.allowed.has(type)}
-          className={`btn btn-sm ${mimeFilters.allowed.has(type) ? 'btn-dark' : 'btn-secondary'}`}
-          onClick={() => handlers.toggleMimeType(type)}
-        >
-          {type}
-        </button>
-      ))}
-      <button
-        type="button"
-        aria-pressed={mimeFilters.showOther}
-        className={`btn btn-sm ${mimeFilters.showOther ? 'btn-dark' : 'btn-secondary'}`}
-        onClick={handlers.toggleOtherTypes}
-      >
-        other
-      </button>
-
-      <MediaSortControls sortKey={sortKey} sortDir={sortDir} onSort={handlers.handleSort} />
-
+      <div className='flex gap-2'>
+        {(['image', 'video', 'audio'] as MimeTypeFilter[]).map(type => (
+          <button
+            key={type}
+            type="button"
+            aria-pressed={mimeFilters.allowed.has(type)}
+            className={`btn btn-sm ${mimeFilters.allowed.has(type) ? 'btn-dark' : 'btn-secondary'}`}
+            onClick={() => handlers.toggleMimeType(type)}
+          >
+            {type}
+          </button>
+        ))}
+      </div>
+      <div className='flex gap-2'>
+        <MediaSortControls sortKey={sortKey} sortDir={sortDir} onSort={handlers.handleSort} />
         <button
           type="button"
           className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`}
@@ -71,6 +64,7 @@ export default function MediaToolbar({
         >
           Grid
         </button>
+      </div>
     </div>
   );
 }

@@ -69,7 +69,6 @@ export function GoogleDriveWidget({
 
   const connectionAbortRef = useRef<AbortController | null>(null);
   const shareAbortRef = useRef<AbortController | null>(null);
-  const [driveLinkOpen, setDriveLinkOpen] = useState(false);
 
   const activeConnection = useMemo(() => {
     if (driveConnections.length === 0) return null;
@@ -166,15 +165,6 @@ export function GoogleDriveWidget({
   }, [userId, activeConnection]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('driveLinkOpen');
-    if (saved !== null) setDriveLinkOpen(saved === 'true');
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('driveLinkOpen', String(driveLinkOpen));
-  }, [driveLinkOpen]);
-
-  useEffect(() => {
     fetchConnections();
     return () => {
       connectionAbortRef.current?.abort();
@@ -194,10 +184,6 @@ export function GoogleDriveWidget({
       onReload();
     }
   }, [driveConnectionIdFromQuery, onReload]);
-
-  const toggleDriveLink = useCallback(() => {
-    setDriveLinkOpen((open) => !open);
-  }, []);
 
   const handleSubmit = useCallback(() => {
     if (!userId) {
@@ -226,11 +212,6 @@ export function GoogleDriveWidget({
 
   return (
     <div className="mb-2">
-      <div onClick={toggleDriveLink} className="flex justify-between my-2 rounded bg-slate-50 p-3 cursor-pointer">
-        <h3 className="section-title m-0">Google Drive</h3>
-        <i className={`fa-solid fa-chevron-${driveLinkOpen ? 'up' : 'down'} cursor-pointer`} />
-      </div>
-      {driveLinkOpen && (
         <>
           <p className="text-sm text-gray-600 mb-2">
             Paste a Drive folder ID or URL to link a shared media library.
@@ -295,7 +276,7 @@ export function GoogleDriveWidget({
           </div>
         </>
 
-      )}
+      )
     </div>
   );
 }

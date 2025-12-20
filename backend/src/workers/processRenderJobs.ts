@@ -146,9 +146,9 @@ export async function processRenderJob(
 
     const { drive, connection } = await getDriveClientById(driveConnectionId);
 
-    // Mark RUNNING only if still pending/failed (after validation)
+    // Mark RUNNING only if still eligible (after validation)
     const updated = await prisma.renderJob.updateMany({
-      where: { id: job.id, status: { in: ['PENDING', 'FAILED'] } },
+      where: { id: job.id, status: { in: ['PENDING', 'RUNNING', 'FAILED'] } },
       data: { status: 'RUNNING', errorMessage: null },
     });
     if (updated.count === 0) {

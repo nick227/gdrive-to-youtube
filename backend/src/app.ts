@@ -18,6 +18,7 @@ import youtubeVideoRoutes from "./routes/youtubeVideos";
 import youtubeChannelRoutes from "./routes/youtubeChannels";
 import mediaPreviewRoutes from "./routes/media-preview";
 import driveRoutes from "./routes/drive";
+import jobQueueRoutes from "./routes/jobQueue";
 import prisma from "./prismaClient";
 import { validateEnv } from "./config/validateEnv";
 
@@ -42,6 +43,7 @@ const API_PREFIXES = [
   "/drive",
   "/upload-jobs",
   "/render-jobs",
+  "/job-queue",
   "/health",
 ];
 
@@ -244,6 +246,7 @@ app.use("/drive", requireAuth, driveRoutes);
 // Protected routes requiring authentication
 app.use("/upload-jobs", requireAuth, uploadJobRoutes);
 app.use("/render-jobs", requireAuth, renderJobRoutes);
+app.use("/job-queue", requireAuth, jobQueueRoutes);
 
 /* =============================================================================
    LOCAL DEV UX

@@ -275,8 +275,6 @@ export function GoogleDriveWidget({
             )}
           </div>
         </>
-
-      )
     </div>
   );
 }

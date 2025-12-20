@@ -258,11 +258,10 @@ function PageContent() {
           <div className="grid-cols-3 py-6">
             {/* section */}
             <div>
-              <h2 className="text-9xl">YUM</h2>
-              <p className="text-xl my-4 underline">
+              <h2 className="text-5xl">YUM</h2>
+              <p className="text-s my-4 underline">
                 YouTube Upload Manager
               </p>
-              <ul className="list-disc list-inside space-y-2 text-xl"> <li className='pb-4'>Sign in with Google</li> <li className='pb-4'>Connect YouTube channel</li> <li className='pb-4'>Link Google Drive</li> <li className='pb-4'>Combine media and render videos</li> <li className='pb-4'>Upload to YouTube</li> </ul>
             </div>
             {/* section */}
             <div>

@@ -2,9 +2,10 @@ import { Router } from 'express';
 import prisma from '../prismaClient';
 import { getCurrentUser } from '../auth/middleware';
 import { syncDrive } from '../workers/syncDrive';
-import { processUploadJob } from '../workers/processUploadJobs';
+import { processUploadJob, type UploadJobWithRelations } from '../workers/processUploadJobs';
 import { processRenderJob } from '../workers/processRenderJobs';
-import type { JobStatus, UploadJob, RenderJob } from '@prisma/client';
+import type { JobStatus } from '@prisma/client';
+import type { RenderJobWithRelations } from '../rendering/mediaResolver';
 
 type TaskType = 'sync' | 'uploads' | 'renders';
 
@@ -24,7 +25,7 @@ const normalizeTasks = (tasks: unknown): TaskType[] => {
   return deduped.length === 0 ? [...VALID_TASKS] : deduped;
 };
 
-const claimUploadJobs = async (): Promise<UploadJob[]> => {
+const claimUploadJobs = async (): Promise<UploadJobWithRelations[]> => {
   const candidates = await prisma.uploadJob.findMany({
     where: { status: 'PENDING' as JobStatus },
     orderBy: { createdAt: 'asc' },
@@ -50,7 +51,7 @@ const claimUploadJobs = async (): Promise<UploadJob[]> => {
   });
 };
 
-const claimRenderJobs = async (): Promise<RenderJob[]> => {
+const claimRenderJobs = async (): Promise<RenderJobWithRelations[]> => {
   const candidates = await prisma.renderJob.findMany({
     where: { status: 'PENDING' as JobStatus },
     orderBy: { createdAt: 'asc' },

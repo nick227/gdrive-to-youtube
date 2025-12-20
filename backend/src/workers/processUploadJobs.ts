@@ -7,7 +7,7 @@ import { Readable } from 'stream';
 
 dotenv.config();
 
-type UploadJobWithRelations = UploadJob & {
+export type UploadJobWithRelations = UploadJob & {
   mediaItem: MediaItem;
   youtubeChannel: YoutubeChannel;
   thumbnailMediaItem?: MediaItem | null;

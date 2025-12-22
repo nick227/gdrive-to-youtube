@@ -15,6 +15,7 @@ import {
   getAudioDurationSeconds,
   muxAudioAndVideo,
 } from '../rendering/slideshow';
+import { renderWaveformVideo } from '../rendering/waveform';
 import { uploadMp4ToDrive } from '../rendering/upload';
 import {
   RenderJobWithRelations,
@@ -95,9 +96,18 @@ async function renderFromSpec(
     return { outputPath, baseName };
   }
 
-  // Waveform placeholder: pipeline not implemented yet.
+  // Waveform render.
   if (spec.mode === 'waveform') {
-    throw new Error('Waveform rendering is not implemented yet');
+    await renderWaveformVideo(mergedAudioPath, outputPath, {
+      backgroundColor: spec.backgroundColor,
+      waveColor: spec.waveColor,
+      waveStyle: spec.waveStyle,
+    });
+
+    const baseName =
+      spec.outputFileName ||
+      (audioItems.length > 0 ? audioItems[0].name : 'rendered_video');
+    return { outputPath, baseName };
   }
 
   // Exhaustive guard

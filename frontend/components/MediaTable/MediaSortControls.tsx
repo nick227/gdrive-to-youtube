@@ -19,7 +19,7 @@ export default function MediaSortControls({ sortKey, sortDir, onSort }: Props) {
           key={col.key}
           type="button"
           aria-sort={sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
-          className={`btn btn-sm ${sortKey === col.key ? 'btn-secondary' : 'btn-outline-secondary'}`}
+          className={`hide-mobile btn btn-sm ${sortKey === col.key ? 'btn-secondary' : 'btn-outline-secondary'}`}
           onClick={() => onSort(col.key)}
         >
           {col.label}

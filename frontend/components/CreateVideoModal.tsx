@@ -214,7 +214,7 @@ export default function CreateVideoModal({
           />
         )}
 
-        {previewImage && (
+        {mode === 'slideshow' && previewImage && (
           <div className="form-field">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

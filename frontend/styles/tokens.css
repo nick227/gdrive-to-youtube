@@ -73,7 +73,7 @@
   --z-modal: 1000;
 
   /* Layout */
-  --max-width-page: 80vw;
+  --max-width-page: 50vw;
   --max-width-modal: 480px;
   --body-grid-template-columns: repeat(3, minmax(0, 1fr));
 }

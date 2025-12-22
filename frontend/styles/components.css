@@ -219,6 +219,7 @@ input[type="text"]:focus {
   align-items: center;
   justify-content: center;
   z-index: var(--z-modal);
+  background-color: var(--color-overlay);
 }
 
 .modal-content {
@@ -226,6 +227,8 @@ input[type="text"]:focus {
   max-width: var(--max-width-modal);
   width: 99%;
   position: relative;
+  background-color: white;
+  border-radius: 25px;
 }
 
 .modal-close {

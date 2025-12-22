@@ -125,40 +125,60 @@ export async function createSlideshowVideo(
     throw new Error('No frames provided for slideshow video');
   }
 
-  const listPath = path.join(tmpDir, `slideshow-${Date.now()}.txt`);
-  const lines = frames
-    .map((frame) => `file '${escapePathForConcat(frame.path)}'\nduration ${frame.duration}`)
-    .join('\n');
-  const lastFileLine = `\nfile '${escapePathForConcat(frames[frames.length - 1].path)}'`;
-  fs.writeFileSync(listPath, lines + lastFileLine, 'utf-8');
+  const timestamp = Date.now();
+  const segmentPaths: string[] = [];
+
+  // Render each still into a short video segment to avoid fragile image decoding in concat demuxer.
+  for (let i = 0; i < frames.length; i += 1) {
+    const frame = frames[i];
+    const duration = frame.duration > 0 ? frame.duration : 0.1;
+    const segmentPath = path.join(tmpDir, `slideshow-seg-${timestamp}-${i}.mp4`);
+    segmentPaths.push(segmentPath);
+    tempFiles.push(segmentPath);
+
+    await new Promise<void>((resolve, reject) => {
+      const args = [
+        '-y',
+        '-loop',
+        '1',
+        '-t',
+        duration.toFixed(3),
+        '-i',
+        frame.path,
+        '-r',
+        '25',
+        '-pix_fmt',
+        'yuv420p',
+        '-movflags',
+        '+faststart',
+        segmentPath,
+      ];
+      const ff = spawn('ffmpeg', args);
+      ff.stderr.on('data', (d) => console.log(`[ffmpeg slideshow segment] ${d}`));
+      ff.on('error', reject);
+      ff.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`ffmpeg segment exited with code ${code}`));
+      });
+    });
+  }
+
+  const listPath = path.join(tmpDir, `slideshow-list-${timestamp}.txt`);
+  const listContent = segmentPaths.map((p) => `file '${escapePathForConcat(p)}'`).join('\n');
+  fs.writeFileSync(listPath, listContent, 'utf-8');
   tempFiles.push(listPath);
 
-  const outputPath = path.join(tmpDir, `slideshow-${Date.now()}.mp4`);
+  const outputPath = path.join(tmpDir, `slideshow-${timestamp}.mp4`);
   tempFiles.push(outputPath);
 
   await new Promise<void>((resolve, reject) => {
-    const args = [
-      '-y',
-      '-f',
-      'concat',
-      '-safe',
-      '0',
-      '-i',
-      listPath,
-      '-fps_mode',
-      'vfr',
-      '-pix_fmt',
-      'yuv420p',
-      '-movflags',
-      '+faststart',
-      outputPath,
-    ];
+    const args = ['-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', outputPath];
     const ff = spawn('ffmpeg', args);
-    ff.stderr.on('data', (d) => console.log(`[ffmpeg slideshow] ${d}`));
+    ff.stderr.on('data', (d) => console.log(`[ffmpeg slideshow concat] ${d}`));
     ff.on('error', reject);
     ff.on('close', (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`ffmpeg slideshow exited with code ${code}`));
+      else reject(new Error(`ffmpeg slideshow concat exited with code ${code}`));
     });
   });
 
@@ -177,13 +197,28 @@ export async function muxAudioAndVideo(
       videoPath,
       '-i',
       audioPath,
+      // Explicitly map streams to avoid picking up attached pictures on some MP3s.
+      '-map',
+      '0:v:0',
+      '-map',
+      '1:a:0',
+      // Re-encode the video track to ensure stable timestamps; copying could drop frames
+      // when the slideshow is built from sparse stills.
       '-c:v',
-      'copy',
+      'libx264',
+      '-preset',
+      'veryfast',
+      '-crf',
+      '20',
+      '-pix_fmt',
+      'yuv420p',
       '-c:a',
       'aac',
       '-b:a',
       '192k',
       '-shortest',
+      '-movflags',
+      '+faststart',
       outputPath,
     ];
     const ff = spawn('ffmpeg', args);

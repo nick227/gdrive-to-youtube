@@ -67,7 +67,6 @@ export default function MediaPreview({ src, category, name }: MediaPreviewProps)
   if (category === 'audio') {
     return (
       <div className="w-full media-item-audio">
-        <div className="audio-label">Audio</div>
         <audio controls src={src} onPlay={e => handlePlay(e.currentTarget)} />
       </div>
     );

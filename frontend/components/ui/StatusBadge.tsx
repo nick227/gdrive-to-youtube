@@ -9,8 +9,8 @@ interface StatusBadgeProps {
 const defaultText: Record<StatusType, string> = {
   idle: 'Idle',
   pending: 'Pending',
-  running: 'Uploading…',
-  success: 'Uploaded',
+  running: 'Running',
+  success: 'Success',
   failed: 'Failed',
   scheduled: 'Scheduled',
   missing: 'Missing'

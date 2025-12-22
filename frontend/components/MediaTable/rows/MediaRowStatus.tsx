@@ -19,7 +19,7 @@ export default function MediaRowStatus({ state, error, showBadge = false, compac
       : undefined;
 
   return (
-    <div className="flex items-center gap-2 text-xs">
+    <div className="flex items-center px-2 text-xs">
       {showBadge && <StatusBadge status={state.kind} scheduledTime={scheduledTime} />}
       {compactStatus && <span className="text-error">{compactStatus}</span>}
       {error && <span className="text-error">{error}</span>}

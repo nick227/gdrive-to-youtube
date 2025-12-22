@@ -63,7 +63,7 @@ export function safeParseRenderSpec(raw: unknown): { spec: RenderSpec | null; er
   if (typeof raw === 'string') {
     try {
       parsed = JSON.parse(raw) as unknown;
-    } catch (err) {
+    } catch {
       return { spec: null, error: 'renderSpec is not valid JSON' };
     }
   }

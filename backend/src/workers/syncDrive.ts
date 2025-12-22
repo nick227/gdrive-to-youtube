@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import { drive_v3 } from 'googleapis';
 import prisma from '../prismaClient';
 import { DriveConnectionStatus } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { refreshConnectionIfNeeded, markDriveConnectionStatus } from '../utils/driveConnectionClient';
 
 dotenv.config();
@@ -10,10 +11,22 @@ dotenv.config();
 const PAGE_SIZE = 100;
 const DEFAULT_MIME_TYPE = 'application/octet-stream';
 const folderPathCache = new Map<string, string>();
+const connectionLocks = new Set<string>();
+const lastSyncAt = new Map<string, number>();
+
+// Tunables
+const MIN_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_FILES_PER_CONNECTION = 5000;
+const UPSERT_CONCURRENCY = 5;
 
 interface SyncStats {
   upserted: number;
   markedMissing: number;
+}
+
+interface SyncDriveOptions {
+  userId?: number;
+  driveConnectionIds?: string[];
 }
 
 /**
@@ -21,10 +34,12 @@ interface SyncStats {
  */
 async function fetchAllDescendantFiles(
   drive: drive_v3.Drive,
-  rootFolderId: string
-): Promise<drive_v3.Schema$File[]> {
+  rootFolderId: string,
+  maxFiles?: number
+): Promise<{ files: drive_v3.Schema$File[]; truncated: boolean }> {
   const allFiles: drive_v3.Schema$File[] = [];
   const folderQueue: string[] = [rootFolderId];
+  let truncated = false;
 
   while (folderQueue.length > 0) {
     const currentFolderId = folderQueue.shift()!;
@@ -52,13 +67,19 @@ async function fetchAllDescendantFiles(
         } else {
           allFiles.push(file);
         }
+
+        if (maxFiles && allFiles.length >= maxFiles) {
+          truncated = true;
+          folderQueue.length = 0;
+          break;
+        }
       }
 
       pageToken = response.data.nextPageToken || undefined;
     } while (pageToken);
   }
 
-  return allFiles;
+  return { files: allFiles, truncated };
 }
 
 /**
@@ -182,25 +203,75 @@ async function markMissingFiles(seenIds: Set<string>, driveConnectionId: string)
   return result.count;
 }
 
+async function processWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<void>
+): Promise<void> {
+  let index = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (index < items.length) {
+      const current = items[index++];
+      await fn(current);
+    }
+  });
+  await Promise.all(workers);
+}
+
 
 /**
  * Syncs files from Google Drive to the database
  */
-export async function syncDrive(): Promise<SyncStats> {
+export async function syncDrive(options: SyncDriveOptions = {}): Promise<SyncStats> {
+  const where: Prisma.DriveConnectionWhereInput = {
+    status: DriveConnectionStatus.ACTIVE,
+  };
+
+  if (options.userId) {
+    where.userId = options.userId;
+  }
+
+  if (options.driveConnectionIds?.length) {
+    const uniqueIds = Array.from(new Set(options.driveConnectionIds));
+    where.id = { in: uniqueIds };
+  }
+
   const connections = await prisma.driveConnection.findMany({
-    where: { status: DriveConnectionStatus.ACTIVE },
+    where,
   });
+
+  if (connections.length === 0) {
+    return { upserted: 0, markedMissing: 0 };
+  }
 
   let totalUpserted = 0;
   let totalMissing = 0;
 
   try {
     for (const connection of connections) {
+      const lockKey = connection.id;
+      const last = lastSyncAt.get(lockKey);
+      const nowTs = Date.now();
+      if (last && nowTs - last < MIN_SYNC_INTERVAL_MS) {
+        console.log('[syncDrive] skipping due to throttle', { connectionId: connection.id });
+        continue;
+      }
+      if (connectionLocks.has(lockKey)) {
+        console.log('[syncDrive] skipping because a sync is already running', { connectionId: connection.id });
+        continue;
+      }
+
+      connectionLocks.add(lockKey);
+      lastSyncAt.set(lockKey, nowTs);
       console.log('[syncDrive] start', { connectionId: connection.id, root: connection.rootFolderId });
       const seenIds = new Set<string>();
       const folderCacheForConnection = new Map<string, string>();
 
       try {
+        const existingActive = await prisma.mediaItem.count({
+          where: { driveConnectionId: connection.id, status: 'ACTIVE' },
+        });
+
         const { drive } = await refreshConnectionIfNeeded(connection);
 
         // reset shared cache per connection
@@ -209,11 +280,29 @@ export async function syncDrive(): Promise<SyncStats> {
           folderPathCache.set(k, v);
         }
 
-        const files = await fetchAllDescendantFiles(drive, connection.rootFolderId);
-        console.log('[syncDrive] fetched files', { connectionId: connection.id, count: files.length });
+        const { files, truncated } = await fetchAllDescendantFiles(
+          drive,
+          connection.rootFolderId,
+          MAX_FILES_PER_CONNECTION
+        );
+        console.log('[syncDrive] fetched files', {
+          connectionId: connection.id,
+          count: files.length,
+          truncated,
+        });
 
-        for (const file of files) {
-          if (!file.id) continue;
+        if (files.length === 0) {
+          console.warn('[syncDrive] WARNING: zero files returned from Drive', { connectionId: connection.id });
+        } else if (files.length < 3 && existingActive > 0) {
+          console.warn('[syncDrive] WARNING: unusually low file count vs existing records', {
+            connectionId: connection.id,
+            fetched: files.length,
+            existingActive,
+          });
+        }
+
+        await processWithConcurrency(files, UPSERT_CONCURRENCY, async (file) => {
+          if (!file.id) return;
 
           seenIds.add(file.id);
 
@@ -225,15 +314,16 @@ export async function syncDrive(): Promise<SyncStats> {
           }
 
           await upsertFile(file, folderPath, connection.id);
-        }
+        });
 
-        const markedMissing = await markMissingFiles(seenIds, connection.id);
+        const markedMissing = truncated ? 0 : await markMissingFiles(seenIds, connection.id);
         totalUpserted += seenIds.size;
         totalMissing += markedMissing;
         console.log('[syncDrive] complete', {
           connectionId: connection.id,
           upserted: seenIds.size,
           markedMissing,
+          truncated,
         });
       } catch (err) {
         console.error(`[syncDrive] error for connection ${connection.id}:`, err);
@@ -242,6 +332,8 @@ export async function syncDrive(): Promise<SyncStats> {
           DriveConnectionStatus.ERROR,
           String(err)
         );
+      } finally {
+        connectionLocks.delete(lockKey);
       }
     }
 
@@ -257,13 +349,13 @@ export async function syncDrive(): Promise<SyncStats> {
 
 // Main execution
 if (require.main === module) {
-  syncDrive()
+  void syncDrive()
     .then((stats) => {
       console.log('Sync completed successfully:', stats);
-      prisma.$disconnect().finally(() => process.exit(0));
+      return prisma.$disconnect().finally(() => process.exit(0));
     })
     .catch((error) => {
       console.error('Sync failed:', error);
-      prisma.$disconnect().finally(() => process.exit(1));
+      return prisma.$disconnect().finally(() => process.exit(1));
     });
 }

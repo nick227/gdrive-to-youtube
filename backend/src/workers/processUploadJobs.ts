@@ -21,6 +21,11 @@ function formatError(err: unknown): string {
 }
 
 export async function processUploadJob(job: UploadJobWithRelations): Promise<void> {
+  if (job.youtubeVideoId || job.status === 'SUCCESS') {
+    console.log(`Job ${job.id} already completed; skipping reprocess.`);
+    return;
+  }
+
   // Claim the job atomically; skip if already processed
   const claimed = await prisma.uploadJob.updateMany({
     where: { id: job.id, status: { in: ['PENDING', 'RUNNING'] } },

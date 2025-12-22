@@ -373,17 +373,4 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
    GRACEFUL SHUTDOWN
 ============================================================================= */
 
-const gracefulShutdown = async (signal: string) => {
-  try {
-    await prisma.$disconnect();
-    console.log("Database connections closed");
-    console.log("Graceful shutdown complete");
-    console.log(signal);
-    process.exit(0);
-  } catch (err) {
-    console.error("Error during shutdown:", err);
-    process.exit(1);
-  }
-};
-
 export default app;

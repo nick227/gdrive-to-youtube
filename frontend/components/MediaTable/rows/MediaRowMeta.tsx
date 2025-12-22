@@ -10,12 +10,12 @@ interface Props {
 
 export default function MediaRowMeta({ path, compactStatus, category }: Props) {
   return (
-    <div className={`h-20 px-4 py-1 ${category}`.trim()}>
+    <div className={`h-10 px-4 py-2 ${category}`.trim()}>
       <span title={path} className="min-w-0 line-clamp-3 break-all items-baseline-start">
         <MediaRowIcon category={category} /> {path}
       </span>
       {compactStatus && (
-        <div className="text-xs whitespace-nowrap mt-6">{compactStatus}</div>
+        <div className="text-xs whitespace-nowrap p-2">{compactStatus}</div>
       )}
     </div>
   );

@@ -215,7 +215,6 @@ input[type="text"]:focus {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: var(--color-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -223,8 +222,6 @@ input[type="text"]:focus {
 }
 
 .modal-content {
-  background: var(--color-bg);
-  border-radius: var(--radius-md);
   padding: var(--space-lg);
   max-width: var(--max-width-modal);
   width: 99%;
@@ -298,3 +295,4 @@ input[type="text"]:focus {
 .text-success {
   color: var(--color-success-text);
 }
+

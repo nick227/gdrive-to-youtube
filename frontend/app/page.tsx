@@ -149,13 +149,13 @@ function PageContent() {
           driveConnectionId={searchParams?.get('driveConnectionId')}
         />
 
-        <ScheduleSection items={scheduleItems} />
-
         <HistorySection
           uploadJobs={uploadJobs}
           renderJobs={renderJobs}
           onRefresh={reload}
         />
+
+        <ScheduleSection items={scheduleItems} />
 
         <div className="my-8">
           <MediaTable

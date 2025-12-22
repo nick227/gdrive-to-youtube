@@ -1,14 +1,25 @@
-    @media screen and (max-width: 768px) {
+@media screen and (max-width: 1612px) {
 
-        .media-list-body {
-            grid-template-columns: repeat(1, minmax(0, 1fr));
+        .media-item {
+            width: 32%;
         }
 
-        .media-list input {
+}
+@media screen and (max-width: 1249px) {
+
+        .media-item {
+            width: 47%;
+        }
+
+}
+
+@media screen and (max-width: 768px) {
+
+        .media-item {
             width: 100%;
         }
 
-        .page-container {
+        .media-list input {
             width: 100%;
         }
 

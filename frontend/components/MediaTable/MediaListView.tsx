@@ -23,9 +23,9 @@ export default function MediaListView({
         <div key={row.key} className={`media-item ${row.mime}`}>
           <MediaRowPreview row={row} />
           <MediaRowMeta path={row.path} compactStatus={row.compactStatus} category={row.mime} />
+          <MediaRowStatus state={row.state} error={row.error} />
 
           <div className="media-item-footer flex justify-end px-4 gap-4 mb-4">
-            <MediaRowStatus state={row.state} error={row.error} />
             <MediaRowActions
               row={row}
               onPostToYouTube={onPostToYouTube}

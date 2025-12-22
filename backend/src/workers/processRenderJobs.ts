@@ -21,7 +21,6 @@ import {
   resolveRenderMedia,
 } from '../rendering/mediaResolver';
 import { getDriveClientById } from '../utils/driveConnectionClient';
-import { DriveConnectionStatus } from '@prisma/client';
 
 dotenv.config();
 
@@ -44,7 +43,7 @@ async function renderFromSpec(
   imagePaths: string[],
   tempFiles: string[],
   audioItems: MediaItem[],
-  imageItems: MediaItem[]
+  _imageItems: MediaItem[]
 ): Promise<RenderOutput> {
   if (audioPaths.length === 0) {
     throw new Error('No audio tracks downloaded for render');

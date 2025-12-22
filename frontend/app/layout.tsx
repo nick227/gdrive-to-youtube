@@ -3,6 +3,7 @@ import { Providers } from '../components/Providers';
 import '../styles/tokens.css';
 import '../styles/globals.css';
 import '../styles/components.css';
+import '../styles/media.css';
 import './mobile.css';
 import '../public/vendor/fontawesome/css/all.min.css';
 

@@ -84,7 +84,6 @@ const claimRenderJobs = async (userId: number): Promise<RenderJobWithRelations[]
     where: {
       status: 'PENDING' as JobStatus,
       requestedByUserId: userId,
-      OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
     },
     orderBy: { createdAt: 'asc' },
     select: { id: true },
@@ -98,7 +97,6 @@ const claimRenderJobs = async (userId: number): Promise<RenderJobWithRelations[]
       id: { in: ids },
       status: 'PENDING' as JobStatus,
       requestedByUserId: userId,
-      OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
     },
     data: { status: 'RUNNING' as JobStatus, errorMessage: null },
   });
@@ -205,7 +203,6 @@ router.post('/trigger', async (req, res) => {
       where: {
         status: 'PENDING',
         requestedByUserId: user.id,
-        OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
       },
     })
     : 0;

@@ -24,8 +24,10 @@ vi.mock('../src/prismaClient', () => ({
     },
     renderJob: {
       findMany: vi.fn().mockResolvedValue([]),
+      findUnique: vi.fn().mockResolvedValue(null),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     youtubeChannel: {
       findMany: vi.fn().mockResolvedValue([]),
@@ -35,6 +37,7 @@ vi.mock('../src/prismaClient', () => ({
       findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
     },
+    $transaction: vi.fn(async (fn: (client: unknown) => unknown) => fn({})),
     $disconnect: vi.fn(),
   },
 }));

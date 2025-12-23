@@ -21,6 +21,14 @@ function normalizePathJoin(
   return `${cleanPath}/${fileName}`;
 }
 
+function normalizeFolderPath(folderPath: string | null | undefined): string {
+  const raw = folderPath?.trim();
+  if (!raw) return '/';
+  if (raw === '/') return '/';
+  const normalized = raw.replace(/\\+/g, '/').replace(/\/+$/, '');
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+}
+
 function deriveCompactStatusFromUsage(usage: EnrichedMediaItem['_enriched']['usage']): string {
   const count =
     (usage.renderAudioCount ?? 0) +
@@ -76,6 +84,7 @@ export function enrichMediaItem(
   const formattedDate = createdAtTime ? new Date(createdAtTime).toLocaleDateString('en-US') : '—';
 
   const fullPath = normalizePathJoin(item.folderPath, item.name);
+  const directoryPath = normalizeFolderPath(item.folderPath);
 
   const stableKey =
     item.driveFileId
@@ -96,6 +105,7 @@ export function enrichMediaItem(
       createdAtTime,
       formattedDate,
       fullPath,
+      directoryPath,
       stableKey,
       usage,
       compactStatus,

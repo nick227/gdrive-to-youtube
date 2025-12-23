@@ -28,7 +28,17 @@ export default function MediaTable({
   onCancelJob,
 }: MediaTableProps) {
 
-  const { rows, sortKey, sortDir, search, mimeFilters, handlers, meta } = useMediaTable({
+  const {
+    rows,
+    sortKey,
+    sortDir,
+    search,
+    mimeFilters,
+    pathFilters,
+    pathOptions,
+    handlers,
+    meta,
+  } = useMediaTable({
     media,
     uploadJobs,
     renderJobs,
@@ -64,6 +74,8 @@ export default function MediaTable({
       <MediaToolbar
         search={search}
         mimeFilters={mimeFilters}
+        pathFilters={pathFilters}
+        pathOptions={pathOptions}
         sortKey={sortKey}
         sortDir={sortDir}
         viewMode={viewMode}

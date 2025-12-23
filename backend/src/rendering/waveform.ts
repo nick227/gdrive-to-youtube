@@ -14,6 +14,7 @@ export type WaveformRenderOptions = {
 const DEFAULT_WIDTH = 1280;
 const DEFAULT_HEIGHT = 720;
 const DEFAULT_FPS = 30;
+const MAX_ALLOC_BYTES = 128 * 1024 * 1024;
 
 function parseHexColor(value: string | undefined): string | null {
   if (!value) return null;
@@ -80,10 +81,14 @@ export async function renderWaveformVideo(
   await new Promise<void>((resolve, reject) => {
     const args = [
       '-y',
+      '-max_alloc',
+      String(MAX_ALLOC_BYTES),
       '-i',
       audioPath,
       '-filter_complex',
       filterGraph,
+      '-filter_complex_threads',
+      '1',
       '-map',
       '[vid]',
       '-map',
@@ -100,6 +105,8 @@ export async function renderWaveformVideo(
       'aac',
       '-b:a',
       '192k',
+      '-threads',
+      '1',
       '-shortest',
       '-movflags',
       '+faststart',

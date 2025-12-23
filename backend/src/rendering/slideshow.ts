@@ -1,8 +1,14 @@
 import fs from 'fs';
+import fsPromises from 'fs/promises';
 import path from 'path';
 import { spawn } from 'child_process';
 
 export type SlideFrame = { path: string; duration: number };
+
+const DEFAULT_WIDTH = 1280;
+const DEFAULT_HEIGHT = 720;
+const DEFAULT_FPS = 25;
+const MAX_ALLOC_BYTES = 128 * 1024 * 1024;
 
 function escapePathForConcat(filePath: string): string {
   const forward = filePath.replace(/\\/g, '/');
@@ -57,7 +63,22 @@ export async function concatAudios(
   tempFiles.push(outputPath);
 
   await new Promise<void>((resolve, reject) => {
-    const args = ['-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', outputPath];
+    const args = [
+      '-y',
+      '-max_alloc',
+      String(MAX_ALLOC_BYTES),
+      '-f',
+      'concat',
+      '-safe',
+      '0',
+      '-i',
+      listPath,
+      '-c',
+      'copy',
+      '-threads',
+      '1',
+      outputPath,
+    ];
     const ff = spawn('ffmpeg', args);
     ff.stderr.on('data', (d) => console.log(`[ffmpeg concat audio] ${d}`));
     ff.on('error', reject);
@@ -125,6 +146,13 @@ export async function createSlideshowVideo(
     throw new Error('No frames provided for slideshow video');
   }
 
+  const targetWidth = DEFAULT_WIDTH;
+  const targetHeight = DEFAULT_HEIGHT;
+  const scaleFilter = [
+    `scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease`,
+    `pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2:color=black`,
+    'format=yuv420p',
+  ].join(',');
   const timestamp = Date.now();
   const segmentPaths: string[] = [];
 
@@ -138,15 +166,27 @@ export async function createSlideshowVideo(
 
     await new Promise<void>((resolve, reject) => {
       const args = [
-        '-y',
-        '-loop',
-        '1',
-        '-t',
-        duration.toFixed(3),
-        '-i',
+      '-y',
+      '-max_alloc',
+      String(MAX_ALLOC_BYTES),
+      '-loop',
+      '1',
+      '-t',
+      duration.toFixed(3),
+      '-i',
         frame.path,
+        '-vf',
+        scaleFilter,
         '-r',
-        '25',
+        String(DEFAULT_FPS),
+        '-c:v',
+        'libx264',
+        '-preset',
+        'veryfast',
+        '-crf',
+        '20',
+        '-threads',
+        '1',
         '-pix_fmt',
         'yuv420p',
         '-movflags',
@@ -172,7 +212,22 @@ export async function createSlideshowVideo(
   tempFiles.push(outputPath);
 
   await new Promise<void>((resolve, reject) => {
-    const args = ['-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c', 'copy', outputPath];
+    const args = [
+      '-y',
+      '-max_alloc',
+      String(MAX_ALLOC_BYTES),
+      '-f',
+      'concat',
+      '-safe',
+      '0',
+      '-i',
+      listPath,
+      '-c',
+      'copy',
+      '-threads',
+      '1',
+      outputPath,
+    ];
     const ff = spawn('ffmpeg', args);
     ff.stderr.on('data', (d) => console.log(`[ffmpeg slideshow concat] ${d}`));
     ff.on('error', reject);
@@ -181,6 +236,12 @@ export async function createSlideshowVideo(
       else reject(new Error(`ffmpeg slideshow concat exited with code ${code}`));
     });
   });
+
+  await Promise.all(
+    segmentPaths.map((segmentPath) =>
+      fsPromises.rm(segmentPath, { force: true }).catch(() => {})
+    )
+  );
 
   return outputPath;
 }
@@ -193,6 +254,8 @@ export async function muxAudioAndVideo(
   await new Promise<void>((resolve, reject) => {
     const args = [
       '-y',
+      '-max_alloc',
+      String(MAX_ALLOC_BYTES),
       '-i',
       videoPath,
       '-i',
@@ -216,6 +279,8 @@ export async function muxAudioAndVideo(
       'aac',
       '-b:a',
       '192k',
+      '-threads',
+      '1',
       '-shortest',
       '-movflags',
       '+faststart',

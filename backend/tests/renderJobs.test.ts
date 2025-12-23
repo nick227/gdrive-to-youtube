@@ -26,22 +26,28 @@ describe('Render Jobs routes', () => {
         .send({});
       
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('audioMediaItemId is required');
+      expect(response.body.error).toBe('At least one audioMediaItemId is required');
     });
 
     it('should return 404 if audio media not found', async () => {
-      vi.mocked(prisma.mediaItem.findUnique).mockResolvedValue(null);
-
       const response = await request(app)
         .post('/render-jobs')
-        .send({ audioMediaItemId: 999 });
+        .send({
+          renderSpec: {
+            mode: 'waveform',
+            audios: [999],
+            backgroundColor: '#000000',
+            waveColor: '#ffffff',
+            waveStyle: 'bars',
+          },
+        });
       
       expect(response.status).toBe(404);
-      expect(response.body.error).toBe('Audio media item not found');
+      expect(response.body.error).toBe('Audio media item 999 not found');
     });
 
     it('should return 400 if media is not audio type', async () => {
-      vi.mocked(prisma.mediaItem.findUnique).mockResolvedValue({
+      vi.mocked(prisma.mediaItem.findMany).mockResolvedValue([{
         id: 1,
         driveFileId: 'abc',
         name: 'video.mp4',
@@ -55,14 +61,22 @@ describe('Render Jobs routes', () => {
         status: 'ACTIVE',
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      }] as never);
 
       const response = await request(app)
         .post('/render-jobs')
-        .send({ audioMediaItemId: 1 });
+        .send({
+          renderSpec: {
+            mode: 'waveform',
+            audios: [1],
+            backgroundColor: '#000000',
+            waveColor: '#ffffff',
+            waveStyle: 'bars',
+          },
+        });
       
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('audioMediaItemId must reference an audio file');
+      expect(response.body.error).toBe('Media item 1 must be audio/*');
     });
 
     it('should create render job for valid audio', async () => {
@@ -81,12 +95,27 @@ describe('Render Jobs routes', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      const imageMedia = {
+        id: 2,
+        driveFileId: 'image123',
+        name: 'cover.png',
+        mimeType: 'image/png',
+        sizeBytes: BigInt(4000),
+        folderId: null,
+        folderPath: null,
+        webViewLink: null,
+        webContentLink: null,
+        driveConnectionId: null,
+        status: 'ACTIVE' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      vi.mocked(prisma.mediaItem.findUnique).mockResolvedValue(audioMedia);
+      vi.mocked(prisma.mediaItem.findMany).mockResolvedValue([audioMedia, imageMedia] as never);
       vi.mocked(prisma.renderJob.create).mockResolvedValue({
         id: 1,
         audioMediaItemId: 1,
-        imageMediaItemId: null,
+        imageMediaItemId: 2,
         outputMediaItemId: null,
         waveformConfig: null,
         status: 'PENDING',
@@ -94,12 +123,22 @@ describe('Render Jobs routes', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         audioMediaItem: audioMedia,
-        imageMediaItem: null,
+        imageMediaItem: imageMedia,
+        requestedByUser: mockUser,
       } as never);
 
       const response = await request(app)
         .post('/render-jobs')
-        .send({ audioMediaItemId: 1 });
+        .send({
+          renderSpec: {
+            mode: 'slideshow',
+            images: [2],
+            audios: [1],
+            intervalSeconds: 5,
+            autoTime: true,
+            repeatImages: false,
+          },
+        });
       
       expect(response.status).toBe(201);
       expect(prisma.renderJob.create).toHaveBeenCalled();

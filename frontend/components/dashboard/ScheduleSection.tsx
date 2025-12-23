@@ -4,9 +4,10 @@ import ScheduleView from '../schedule/ScheduleView';
 
 interface ScheduleSectionProps {
   items: ScheduleItem[];
+  onQuickPost(date: string): void;
 }
 
-export function ScheduleSection({ items }: ScheduleSectionProps) {
+export function ScheduleSection({ items, onQuickPost }: ScheduleSectionProps) {
   const schedule = usePersistedToggle('scheduleOpen', false);
 
   return (
@@ -21,7 +22,7 @@ export function ScheduleSection({ items }: ScheduleSectionProps) {
 
       {schedule.open && (
         <div className="mb-8 mt-2">
-          <ScheduleView items={items} />
+          <ScheduleView items={items} onQuickPost={onQuickPost} />
         </div>
       )}
     </section>

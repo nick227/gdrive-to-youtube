@@ -35,6 +35,7 @@ export interface EnrichedMediaItem extends MediaItem {
     createdAtTime: number;
     formattedDate: string;
     fullPath: string;
+    directoryPath: string;
     stableKey: string;
     compactStatus: string;
     usage: {

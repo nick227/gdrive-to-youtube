@@ -35,6 +35,16 @@ input[type="text"]:focus {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  padding: 0px 8px 1px 8px;
+  border: 1px solid gray;
+  line-height: 1;
+  font-size: 12px;
+  height: 24px;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+
 }
 
 .btn-dark {
@@ -54,11 +64,6 @@ input[type="text"]:focus {
 
 .btn-login {
   background: var(--color-primary);
-  color: white;
-}
-
-.btn-login:hover {
-  background: var(--color-primary-hover);
   color: white;
 }
 

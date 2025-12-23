@@ -64,7 +64,7 @@ export function SetupSection({
               </ul>
               {user && (
                 <a
-                  className="btn btn-secondary w-fit text-sm"
+                  className="btn btn-small text-sm"
                   href={`${API_URL}/channels/auth-url?userId=${user.id}`}
                   target="_blank"
                   rel="noreferrer"
@@ -96,7 +96,7 @@ export function SetupSection({
                 Publishing checklist
               </h4>
               <p className="text-sm text-slate-600">
-                Keep these steps in mind before scheduling new uploads.
+                How to use the tool.
               </p>
               <div className="space-y-2 text-sm text-slate-800">
                 <div className="flex items-start gap-2">
@@ -109,7 +109,11 @@ export function SetupSection({
                 </div>
                 <div className="flex items-start gap-2">
                   <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5" />
-                  <span>Review titles, privacy, and schedule times before posting.</span>
+                  <span>Create slideshows or waveform videos.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5" />
+                  <span>Schedule and publish to YoutTube.</span>
                 </div>
               </div>
             </div>

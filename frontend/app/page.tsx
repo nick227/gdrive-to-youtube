@@ -9,6 +9,7 @@ import { triggerJobQueue, cancelUploadJob } from '../utils/jobActions';
 import MediaTable from '../components/MediaTable';
 import QuickUploadModal from '../components/QuickUploadModal';
 import CreateVideoModal from '../components/CreateVideoModal';
+import LoadingModal from '../components/LoadingModal';
 import { AuthOnly } from '../components/AuthOnly';
 import { HeaderBar } from '../components/dashboard/HeaderBar';
 import { SetupSection } from '../components/dashboard/SetupSection';
@@ -20,12 +21,22 @@ import { MediaItem } from '../types/api';
 
 type ModalState =
   | { type: null }
-  | { type: 'upload'; item: MediaItem }
-  | { type: 'create'; item: MediaItem };
+  | { type: 'upload'; item?: MediaItem | null; scheduledFor?: string | null }
+  | { type: 'create'; item?: MediaItem | null }
+  | { type: 'loading'; item?: MediaItem | null };
 
 function PageContent() {
   const { user, loading: authLoading, login, logout } = useAuth();
-  const { media, uploadJobs, renderJobs, channels, loading, error, reload } =
+  const {
+    media,
+    uploadJobs,
+    renderJobs,
+    channels,
+    loading,
+    error,
+    reload,
+    refreshUploadJobs,
+  } =
     useMediaDashboard();
 
   const router = useRouter();
@@ -73,7 +84,12 @@ function PageContent() {
 
   const closeModal = () => setModal({ type: null });
 
-  const handleModalSuccess = () => {
+  const handleUploadSuccess = () => {
+    closeModal();
+    refreshUploadJobs();
+  };
+
+  const handleRenderSuccess = () => {
     closeModal();
     reload();
   };
@@ -82,7 +98,8 @@ function PageContent() {
     async (tasks: string[]) => {
       try {
         await triggerJobQueue(tasks);
-        alert(`Triggered: ${tasks.join(', ')}`);
+        setModal({ type: 'loading', item: null })
+        await new Promise(r => setTimeout(r, 3000));
         await reload(); // rehydrate media, history, and schedule in place
       } catch (err) {
         console.error('Job queue trigger failed', err);
@@ -95,6 +112,23 @@ function PageContent() {
   const handleSyncMedia = () => requireAuth(() => handleJobQueue(['sync']));
   const handleProcessJobs = () =>
     requireAuth(() => handleJobQueue(['uploads', 'renders']));
+  const handleCreateVideo = useCallback(
+    () => requireAuth(() => setModal({ type: 'create', item: null })),
+    [requireAuth]
+  );
+
+  const buildScheduledFor = useCallback((date: string) => `${date}T10:00`, []);
+  const handleQuickPost = useCallback(
+    (date: string) =>
+      requireAuth(() =>
+        setModal({
+          type: 'upload',
+          item: null,
+          scheduledFor: buildScheduledFor(date),
+        })
+      ),
+    [requireAuth, buildScheduledFor]
+  );
 
   if (error) {
     return (
@@ -126,6 +160,7 @@ function PageContent() {
         onLogout={logout}
         onSyncMedia={handleSyncMedia}
         onProcessJobs={handleProcessJobs}
+        onCreateVideo={handleCreateVideo}
       />
 
       {!user && (
@@ -155,7 +190,7 @@ function PageContent() {
           onRefresh={reload}
         />
 
-        <ScheduleSection items={scheduleItems} />
+        <ScheduleSection items={scheduleItems} onQuickPost={handleQuickPost} />
 
         <div className="my-8">
           <MediaTable
@@ -174,29 +209,37 @@ function PageContent() {
 
         <QuickUploadModal
           isOpen={modal.type === 'upload'}
-          mediaItem={modal.type === 'upload' ? modal.item : null}
+          mediaItem={modal.type === 'upload' ? modal.item ?? null : null}
+          initialScheduledFor={
+            modal.type === 'upload' ? modal.scheduledFor ?? undefined : undefined
+          }
           channels={channels}
           onClose={closeModal}
-          onSuccess={handleModalSuccess}
+          onSuccess={handleUploadSuccess}
         />
 
         <CreateVideoModal
           isOpen={modal.type === 'create'}
           audioItem={
             modal.type === 'create' &&
-              modal.item.mimeType.startsWith('audio/')
+              modal.item?.mimeType.startsWith('audio/')
               ? modal.item
               : null
           }
           initialImageId={
             modal.type === 'create' &&
-              modal.item.mimeType.startsWith('image/')
-              ? modal.item.id
+              modal.item?.mimeType.startsWith('image/')
+              ? modal.item?.id
               : undefined
           }
           imageItems={imageItems}
           onClose={closeModal}
-          onSuccess={handleModalSuccess}
+          onSuccess={handleRenderSuccess}
+        />
+
+        <LoadingModal
+          isOpen={modal.type === 'loading'}
+          onClose={closeModal}
         />
       </AuthOnly>
     </main>

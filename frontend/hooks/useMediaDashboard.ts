@@ -58,10 +58,32 @@ export function useMediaDashboard() {
       }));
     }
   }, []);
+  
+  const refreshUploadJobs = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/upload-jobs`, { credentials: 'include' });
+      const uploadJobs = res.ok ? await res.json() : [];
+      setState((prev) => ({
+        ...prev,
+        uploadJobs,
+      }));
+    } catch (err) {
+      console.error('Failed to refresh upload jobs:', err);
+    }
+  }, []);
+
+  const startRenderJob = useCallback(async () => {
+  await fetch(`${API_URL}/render-jobs`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+
+  loadAll(); // refresh state
+}, [loadAll]);
 
   useEffect(() => {
     loadAll();
   }, [loadAll]);
 
-  return { ...state, reload: loadAll };
+  return { ...state, reload: loadAll, refreshUploadJobs, startRenderJob };
 }

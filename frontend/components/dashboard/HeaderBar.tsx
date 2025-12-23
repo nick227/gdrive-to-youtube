@@ -7,6 +7,7 @@ interface HeaderBarProps {
   onLogout: () => void;
   onSyncMedia: () => void;
   onProcessJobs: () => void;
+  onCreateVideo: () => void;
 }
 
 export function HeaderBar({
@@ -15,6 +16,7 @@ export function HeaderBar({
   onLogout,
   onSyncMedia,
   onProcessJobs,
+  onCreateVideo,
 }: HeaderBarProps) {
   return (
     <div className="section-header mb-4 flex items-center justify-between">
@@ -23,6 +25,12 @@ export function HeaderBar({
       <div className="flex items-center gap-2">
         {user && (
           <>
+          <button
+            className='btn btn-primary'
+            onClick={onCreateVideo}
+          >
+            Create new Video
+          </button>
             <button className="btn btn-secondary" onClick={onSyncMedia}>
               Sync Media
             </button>

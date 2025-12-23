@@ -7,9 +7,10 @@ type ViewMode = 'month' | 'day'
 
 interface Props {
   items: ScheduleItem[];
+  onQuickPost(date: string): void;
 }
 
-export default function ScheduleView({ items }: Props) {
+export default function ScheduleView({ items, onQuickPost }: Props) {
   const today = new Date()
   const [view, setView] = useState<ViewMode>('month')
   const [cursorMonth, setCursorMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
@@ -43,6 +44,7 @@ export default function ScheduleView({ items }: Props) {
         onOpenDay={(d) => {
           setSelectedDate(d)
         }}
+        onQuickPost={onQuickPost}
       />
     </div>
   )

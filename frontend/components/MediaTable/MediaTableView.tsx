@@ -59,8 +59,8 @@ export default function MediaTableView({
             {rows.map(row => (
               <tr key={row.key}>
                 <td>
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="line-clamp-1" title={row.path}>
+                  <div className="flex items-center gap-2">
+                    <div className="line-clamp-1 max-w-120" title={row.path}>
                       <a
                         className="text-left hover:underline cursor-pointer"
                         onClick={() => previewMedia(row)}

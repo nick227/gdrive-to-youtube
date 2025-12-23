@@ -23,7 +23,6 @@ export default function MediaPreviewModal({ item, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="relative w-[80vw] h-[80vh] bg-black rounded p-4"
         onClick={e => e.stopPropagation()}
       >
         <button

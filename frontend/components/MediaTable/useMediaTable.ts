@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MediaItem, RenderJob, UploadJob } from '../../types/api';
 import {
   createDefaultMimeFilters,
@@ -25,6 +25,8 @@ interface UseMediaTableHandlers {
   toggleMimeType: (type: MimeTypeFilter) => void;
   toggleOtherTypes: () => void;
   handleSort: (key: SortKey) => void;
+  togglePath: (pathValue: string) => void;
+  selectAllPaths: () => void;
 }
 
 export interface UseMediaTableResult {
@@ -33,6 +35,8 @@ export interface UseMediaTableResult {
   sortDir: SortDir;
   search: string;
   mimeFilters: MimeFiltersState;
+  pathFilters: { allowed: Set<string> };
+  pathOptions: string[];
   handlers: UseMediaTableHandlers;
   meta: {
     hasMedia: boolean;
@@ -40,10 +44,19 @@ export interface UseMediaTableResult {
   };
 }
 
+function filterByDirectoryPath(
+  items: EnrichedMediaItem[],
+  pathFilters: { allowed: Set<string> }
+): EnrichedMediaItem[] {
+  if (pathFilters.allowed.size === 0) return items;
+  return items.filter(item => pathFilters.allowed.has(item._enriched.directoryPath));
+}
+
 function filterAndSort(
   items: EnrichedMediaItem[],
   search: string,
   mimeFilters: MimeFiltersState,
+  pathFilters: { allowed: Set<string> },
   sortKey: SortKey,
   sortDir: SortDir
 ): EnrichedMediaItem[] {
@@ -67,6 +80,7 @@ function filterAndSort(
   }
 
   filtered = filterByMimeCategory(filtered, mimeFilters);
+  filtered = filterByDirectoryPath(filtered, pathFilters);
   return sortMediaItems(filtered, sortKey, sortDir);
 }
 
@@ -79,16 +93,66 @@ export function useMediaTable({
   const [sortDir, setSortDir] = useState<SortDir>(DEFAULT_SORT_DIR);
   const [search, setSearch] = useState('');
   const [mimeFilters, setMimeFilters] = useState<MimeFiltersState>(createDefaultMimeFilters);
+  const [pathFilters, setPathFilters] = useState<{ allowed: Set<string> }>({
+    allowed: new Set(),
+  });
 
   const usageMaps = useMemo(() => computeUsageMaps(uploadJobs, renderJobs), [uploadJobs, renderJobs]);
   const enrichedMedia = useMemo(
     () => enrichMediaItems(media, usageMaps, uploadJobs),
     [media, usageMaps, uploadJobs]
   );
+  const pathOptions = useMemo(() => {
+    const unique = new Set<string>();
+    for (const item of enrichedMedia) {
+      unique.add(item._enriched.directoryPath);
+    }
+    const sorted = Array.from(unique).sort((a, b) => {
+      if (a === '/') return -1;
+      if (b === '/') return 1;
+      return a.localeCompare(b);
+    });
+    return sorted;
+  }, [enrichedMedia]);
+  const prevPathOptions = useRef<string[]>([]);
+
+  useEffect(() => {
+    setPathFilters(prev => {
+      const nextAllowed = new Set(prev.allowed);
+      const prevOptions = prevPathOptions.current;
+      const hadAllSelected = prevOptions.length > 0 && prev.allowed.size === prevOptions.length;
+      const optionSet = new Set(pathOptions);
+      let changed = false;
+
+      for (const pathValue of nextAllowed) {
+        if (!optionSet.has(pathValue)) {
+          nextAllowed.delete(pathValue);
+          changed = true;
+        }
+      }
+
+      if (hadAllSelected) {
+        for (const pathValue of pathOptions) {
+          if (!nextAllowed.has(pathValue)) {
+            nextAllowed.add(pathValue);
+            changed = true;
+          }
+        }
+      } else if (nextAllowed.size === 0 && pathOptions.length > 0) {
+        for (const pathValue of pathOptions) {
+          nextAllowed.add(pathValue);
+        }
+        changed = true;
+      }
+
+      return changed ? { allowed: nextAllowed } : prev;
+    });
+    prevPathOptions.current = pathOptions;
+  }, [pathOptions]);
 
   const filteredEnriched = useMemo(
-    () => filterAndSort(enrichedMedia, search, mimeFilters, sortKey, sortDir),
-    [enrichedMedia, search, mimeFilters, sortKey, sortDir]
+    () => filterAndSort(enrichedMedia, search, mimeFilters, pathFilters, sortKey, sortDir),
+    [enrichedMedia, search, mimeFilters, pathFilters, sortKey, sortDir]
   );
 
   const rows = useMemo(() => filteredEnriched.map(toMediaRow), [filteredEnriched]);
@@ -100,6 +164,24 @@ export function useMediaTable({
   const handleToggleOtherTypes = useCallback(() => {
     setMimeFilters(prev => toggleOtherMime(prev));
   }, []);
+
+  const handleTogglePath = useCallback((pathValue: string) => {
+    setPathFilters(prev => {
+      const nextAllowed = new Set(prev.allowed);
+      if (nextAllowed.has(pathValue)) {
+        if (nextAllowed.size > 1) {
+          nextAllowed.delete(pathValue);
+        }
+      } else {
+        nextAllowed.add(pathValue);
+      }
+      return { allowed: nextAllowed };
+    });
+  }, []);
+
+  const handleSelectAllPaths = useCallback(() => {
+    setPathFilters({ allowed: new Set(pathOptions) });
+  }, [pathOptions]);
 
   const handleSort = useCallback(
     (key: SortKey) => {
@@ -119,11 +201,15 @@ export function useMediaTable({
     sortDir,
     search,
     mimeFilters,
+    pathFilters,
+    pathOptions,
     handlers: {
       setSearch,
       toggleMimeType: handleToggleMimeType,
       toggleOtherTypes: handleToggleOtherTypes,
       handleSort,
+      togglePath: handleTogglePath,
+      selectAllPaths: handleSelectAllPaths,
     },
     meta: {
       hasMedia: media && media.length > 0,

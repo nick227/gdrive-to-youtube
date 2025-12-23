@@ -22,6 +22,7 @@ import {
   resolveRenderMedia,
 } from '../rendering/mediaResolver';
 import { getDriveClientById } from '../utils/driveConnectionClient';
+import { runRenderJobIsolated } from './renderJobIsolation';
 
 dotenv.config();
 
@@ -46,12 +47,20 @@ async function renderFromSpec(
   audioItems: MediaItem[],
   _imageItems: MediaItem[]
 ): Promise<RenderOutput> {
+  const removeFiles = async (paths: string[]) => {
+    await Promise.all(
+      paths.map((filePath) => fsPromises.rm(filePath, { force: true }).catch(() => {}))
+    );
+  };
   if (audioPaths.length === 0) {
     throw new Error('No audio tracks downloaded for render');
   }
 
   const tmpDir = path.dirname(audioPaths[0]);
   const mergedAudioPath = await concatAudios(audioPaths, tmpDir, tempFiles);
+  if (audioPaths.length > 1) {
+    await removeFiles(audioPaths);
+  }
   const totalAudioSeconds = await getAudioDurationSeconds(mergedAudioPath);
   if (!totalAudioSeconds || Number.isNaN(totalAudioSeconds)) {
     throw new Error('Audio duration is invalid or zero');
@@ -88,7 +97,9 @@ async function renderFromSpec(
     );
 
     const slideshowVideo = await createSlideshowVideo(frames, tmpDir, tempFiles);
+    await removeFiles(imagePaths);
     await muxAudioAndVideo(slideshowVideo, mergedAudioPath, outputPath);
+    await removeFiles([slideshowVideo, mergedAudioPath]);
 
     const baseName =
       spec?.outputFileName ||
@@ -103,6 +114,7 @@ async function renderFromSpec(
       waveColor: spec.waveColor,
       waveStyle: spec.waveStyle,
     });
+    await removeFiles([mergedAudioPath]);
 
     const baseName =
       spec.outputFileName ||
@@ -180,13 +192,10 @@ export async function processRenderJob(
       tempFiles,
       jobTempDir
     );
-    const imagePaths = await downloadMediaBatch(
-      drive,
-      imageItems,
-      'image',
-      tempFiles,
-      jobTempDir
-    );
+    const shouldDownloadImages = !resolvedSpec || resolvedSpec.mode === 'slideshow';
+    const imagePaths = shouldDownloadImages
+      ? await downloadMediaBatch(drive, imageItems, 'image', tempFiles, jobTempDir)
+      : [];
 
     // 2. Render into MP4
     const { outputPath, baseName } = await renderFromSpec(
@@ -293,47 +302,42 @@ export async function processRenderJob(
 async function main(): Promise<void> {
   console.log('Processing render jobs...');
 
-  // Reset stale RUNNING jobs (older than 30 minutes) to FAILED
-  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-  const reset = await prisma.renderJob.updateMany({
-    where: {
-      status: 'RUNNING',
-      updatedAt: { lt: thirtyMinutesAgo },
-    },
-    data: {
-      status: 'FAILED',
-      errorMessage: 'Marked failed due to staleness',
-    },
-  });
-  if (reset.count > 0) {
-    console.log(`Reset ${reset.count} stale RUNNING render job(s) to FAILED.`);
+  let processed = 0;
+  while (true) {
+    const job = await prisma.renderJob.findFirst({
+      where: { status: 'PENDING' },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (!job) break;
+
+    console.log('----------------------------------------');
+    console.log(`Starting job ${job.id}...`);
+    const result = await runRenderJobIsolated(job.id);
+    if (result.code === 0) {
+      processed += 1;
+    } else {
+      await prisma.renderJob.updateMany({
+        where: { id: job.id, status: { in: ['PENDING', 'RUNNING'] } },
+        data: {
+          status: 'FAILED',
+          errorMessage: `Render worker exited with code ${result.code ?? 'unknown'}${
+            result.signal ? ` (signal ${result.signal})` : ''
+          }`,
+        },
+      });
+    }
   }
 
-  const jobs = await prisma.renderJob.findMany({
-    where: { status: 'PENDING' },
-    include: {
-      audioMediaItem: true,
-      imageMediaItem: true,
-    },
-    orderBy: { createdAt: 'asc' },
-    take: 10,
-  });
-
-  if (jobs.length === 0) {
+  if (processed === 0) {
     console.log('No render jobs to process.');
     await prisma.$disconnect();
     return;
   }
 
-  console.log(`Found ${jobs.length} pending job(s).`);
+  console.log(`Finished processing ${processed} render job(s).`);
 
-  for (const job of jobs) {
-    console.log('----------------------------------------');
-    console.log(`Starting job ${job.id}...`);
-    await processRenderJob(job);
-  }
-
-  console.log('Finished processing render jobs.');
   await prisma.$disconnect();
 }
 

@@ -3,9 +3,8 @@ import prisma from '../prismaClient';
 import { getCurrentUser } from '../auth/middleware';
 import { syncDrive } from '../workers/syncDrive';
 import { processUploadJob, type UploadJobWithRelations } from '../workers/processUploadJobs';
-import { processRenderJob } from '../workers/processRenderJobs';
+import { runRenderJobIsolated } from '../workers/renderJobIsolation';
 import type { JobStatus } from '@prisma/client';
-import type { RenderJobWithRelations } from '../rendering/mediaResolver';
 
 type TaskType = 'sync' | 'uploads' | 'renders';
 
@@ -28,94 +27,92 @@ const normalizeTasks = (tasks: unknown): TaskType[] => {
   return deduped.length === 0 ? [...DEFAULT_TASKS] : deduped;
 };
 
-const claimUploadJobs = async (userId: number): Promise<UploadJobWithRelations[]> => {
-  const now = new Date();
+const claimNextUploadJob = async (
+  userId: number
+): Promise<UploadJobWithRelations | null> => {
   const running = await prisma.uploadJob.count({
     where: { status: 'RUNNING' as JobStatus, requestedByUserId: userId },
   });
-  if (running >= MAX_UPLOAD_JOBS) return [];
-  const slots = Math.max(0, MAX_UPLOAD_JOBS - running);
-  if (slots === 0) return [];
+  if (running >= MAX_UPLOAD_JOBS) return null;
 
-  const candidates = await prisma.uploadJob.findMany({
-    where: {
-      status: 'PENDING' as JobStatus,
-      requestedByUserId: userId,
-      OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
-    },
-    orderBy: { createdAt: 'asc' },
-    select: { id: true },
-    take: slots,
-  });
-  const ids = candidates.map(c => c.id);
-  if (ids.length === 0) return [];
+  const now = new Date();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const candidate = await prisma.uploadJob.findFirst({
+      where: {
+        status: 'PENDING' as JobStatus,
+        requestedByUserId: userId,
+        OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (!candidate) return null;
 
-  const updated = await prisma.uploadJob.updateMany({
-    where: {
-      id: { in: ids },
-      status: 'PENDING' as JobStatus,
-      requestedByUserId: userId,
-      OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
-    },
-    data: { status: 'RUNNING' as JobStatus, errorMessage: null },
-  });
-  if (updated.count === 0) return [];
+    const updated = await prisma.uploadJob.updateMany({
+      where: {
+        id: candidate.id,
+        status: 'PENDING' as JobStatus,
+        requestedByUserId: userId,
+        OR: [{ scheduledFor: null }, { scheduledFor: { lte: now } }],
+      },
+      data: { status: 'RUNNING' as JobStatus, errorMessage: null },
+    });
+    if (updated.count === 0) continue;
 
-  return prisma.uploadJob.findMany({
-    where: { id: { in: ids }, status: 'RUNNING' as JobStatus, requestedByUserId: userId },
-    include: {
-      mediaItem: true,
-      youtubeChannel: true,
-      thumbnailMediaItem: true,
-    },
-  });
+    return prisma.uploadJob.findUnique({
+      where: { id: candidate.id },
+      include: {
+        mediaItem: true,
+        youtubeChannel: true,
+        thumbnailMediaItem: true,
+      },
+    });
+  }
+
+  return null;
 };
 
-const claimRenderJobs = async (userId: number): Promise<RenderJobWithRelations[]> => {
-  const now = new Date();
+const claimNextRenderJobId = async (userId: number): Promise<number | null> => {
   const running = await prisma.renderJob.count({
     where: { status: 'RUNNING' as JobStatus, requestedByUserId: userId },
   });
-  if (running >= MAX_RENDER_JOBS) return [];
-  const slots = Math.max(0, MAX_RENDER_JOBS - running);
-  if (slots === 0) return [];
+  if (running >= MAX_RENDER_JOBS) return null;
 
-  const candidates = await prisma.renderJob.findMany({
-    where: {
-      status: 'PENDING' as JobStatus,
-      requestedByUserId: userId,
-    },
-    orderBy: { createdAt: 'asc' },
-    select: { id: true },
-    take: slots,
-  });
-  const ids = candidates.map(c => c.id);
-  if (ids.length === 0) return [];
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const candidate = await prisma.renderJob.findFirst({
+      where: {
+        status: 'PENDING' as JobStatus,
+        requestedByUserId: userId,
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (!candidate) return null;
 
-  const updated = await prisma.renderJob.updateMany({
-    where: {
-      id: { in: ids },
-      status: 'PENDING' as JobStatus,
-      requestedByUserId: userId,
-    },
-    data: { status: 'RUNNING' as JobStatus, errorMessage: null },
-  });
-  if (updated.count === 0) return [];
+    const updated = await prisma.renderJob.updateMany({
+      where: {
+        id: candidate.id,
+        status: 'PENDING' as JobStatus,
+        requestedByUserId: userId,
+      },
+      data: { status: 'RUNNING' as JobStatus, errorMessage: null },
+    });
+    if (updated.count === 0) continue;
 
-  return prisma.renderJob.findMany({
-    where: { id: { in: ids }, status: 'RUNNING' as JobStatus, requestedByUserId: userId },
-    include: {
-      audioMediaItem: true,
-      imageMediaItem: true,
-    },
-  });
+    return candidate.id;
+  }
+
+  return null;
 };
 
 const runUploads = async (userId: number) => {
-  const jobs = await claimUploadJobs(userId);
   let processed = 0;
+  let scanned = 0;
 
-  for (const job of jobs) {
+  while (true) {
+    const job = await claimNextUploadJob(userId);
+    if (!job) break;
+    scanned += 1;
     try {
       await processUploadJob(job);
 
@@ -138,33 +135,44 @@ const runUploads = async (userId: number) => {
     }
   }
 
-  return { processed, scanned: jobs.length };
+  return { processed, scanned };
 };
 
 
 const runRenders = async (userId: number) => {
-  const jobs = await claimRenderJobs(userId);
   let processed = 0;
-  for (const job of jobs) {
+  let scanned = 0;
+  while (true) {
+    const jobId = await claimNextRenderJobId(userId);
+    if (!jobId) break;
+    scanned += 1;
     try {
-      await processRenderJob(job);
-      await prisma.renderJob.update({
-        where: { id: job.id },
-        data: { status: 'SUCCESS' as JobStatus, errorMessage: null },
-      });
-      processed += 1;
+      const result = await runRenderJobIsolated(jobId);
+      if (result.code === 0) {
+        processed += 1;
+      } else {
+        await prisma.renderJob.updateMany({
+          where: { id: jobId, status: { in: ['PENDING', 'RUNNING'] } },
+          data: {
+            status: 'FAILED' as JobStatus,
+            errorMessage: `Render worker exited with code ${result.code ?? 'unknown'}${
+              result.signal ? ` (signal ${result.signal})` : ''
+            }`,
+          },
+        });
+      }
     } catch (err) {
       await prisma.renderJob.update({
-        where: { id: job.id },
+        where: { id: jobId },
         data: {
           status: 'FAILED' as JobStatus,
           errorMessage: String(err),
         },
       }).catch(() => {});
-      console.error('[jobQueue] Render job failed', { jobId: job.id, err });
+      console.error('[jobQueue] Render job failed', { jobId, err });
     }
   }
-  return { processed, scanned: jobs.length };
+  return { processed, scanned };
 };
 
 router.post('/trigger', async (req, res) => {

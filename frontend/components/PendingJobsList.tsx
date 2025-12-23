@@ -132,49 +132,27 @@ export default function PendingJobsList({
     return (
         <div className="mt-2">
             <div onClick={onToggle} className="flex justify-between rounded bg-slate-50 p-3 cursor-pointer">
-                
-                    <h3 className="section-title m-0">
-                        History {rows.length > 0 && `(${rows.length})`}
-                    </h3>
-                        <i className={`cursor-pointer fa-solid ${!isOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+
+                <h3 className="section-title m-0">
+                    History {rows.length > 0 && `(${rows.length})`}
+                </h3>
+                <i className={`cursor-pointer fa-solid ${!isOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
             </div>
             {!isOpen && (
                 <div className="d-flex flex-column gap-2 item-list h-60 overflow-y-auto">
                     {rows.map((row) => (
-                    <div
-                        key={row.id}
-                        className="d-flex flex-column gap-1  odd:bg-white even:bg-slate-100 px-1 my-4"
-                    >
-                        <div className="d-flex justify-content-between align-items-center">
-                            <div className="d-flex align-items-center gap-2">{row.title}</div>
-
-                            <div className="text-muted text-xs">{formatDate(row.createdAt)}</div>
+                        <div
+                            key={row.id}
+                            className="flex flex-wrap odd:bg-white even:bg-slate-100 px-1 my-4"
+                        >
+                            <div className='w-full'>{row.kind}: {row.title}</div>
+                            {row.meta && <div className="text-muted text-sm w-full">{row.meta}</div>}
+                            <div className="text-sm w-full flex"><StatusBadge status={row.status} scheduledTime={row.scheduledTime} /></div>
+                            <div className='w-full'>{formatDate(row.createdAt)}</div>
+                            {row.subtitle && <div className="text-muted text-sm">{row.subtitle}</div>}
+                            {row.userLabel && <div className="text-muted text-sm">{row.userLabel}</div>}
+                            {row.error && <div className="text-error text-xs w-full">{row.error}</div>}
                         </div>
-
-                        <div className="my-2">
-                            <div className="text-sm">
-                            Type: {row.kind}
-                            </div>
-                            <div className="text-sm">
-                            Status: <StatusBadge status={row.status} scheduledTime={row.scheduledTime} />
-                            </div>
-                            {row.subtitle && <div className="text-muted text-sm">Channel: {row.subtitle}</div>}
-                            {row.userLabel && <div className="text-muted text-sm">Requested by: {row.userLabel}</div>}
-                            {row.meta && <div className="text-muted text-sm">Source: {row.meta}</div>}
-                            {row.linkHref && (
-                                <a
-                                    href={row.linkHref}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sm"
-                                >
-                                    {row.linkLabel || 'View'}
-                                </a>
-                            )}
-                        </div>
-
-                        {row.error && <div className="text-error text-xs">{row.error}</div>}
-                    </div>
                     ))}
                 </div>
             )}

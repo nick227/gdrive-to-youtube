@@ -1,12 +1,15 @@
 import { MimeFiltersState, MimeTypeFilter } from './data/filters';
 import { SortDir, SortKey } from './data/sort';
 import MediaSortControls from './MediaSortControls';
+import MediaPathFilters from './MediaPathFilters';
 
 type ViewMode = 'list' | 'table';
 
 interface Props {
   search: string;
   mimeFilters: MimeFiltersState;
+  pathFilters: { allowed: Set<string> };
+  pathOptions: string[];
   sortKey: SortKey;
   sortDir: SortDir;
   viewMode: ViewMode;
@@ -15,6 +18,8 @@ interface Props {
     toggleMimeType: (type: MimeTypeFilter) => void;
     toggleOtherTypes: () => void;
     handleSort: (key: SortKey) => void;
+    togglePath: (pathValue: string) => void;
+    selectAllPaths: () => void;
   };
   onViewChange: (mode: ViewMode) => void;
 }
@@ -22,6 +27,8 @@ interface Props {
 export default function MediaToolbar({
   search,
   mimeFilters,
+  pathFilters,
+  pathOptions,
   sortKey,
   sortDir,
   viewMode,
@@ -55,6 +62,12 @@ export default function MediaToolbar({
           </button>
         ))}
       </div>
+      <MediaPathFilters
+        paths={pathOptions}
+        selected={pathFilters.allowed}
+        onToggle={handlers.togglePath}
+        onSelectAll={handlers.selectAllPaths}
+      />
       <div className='flex gap-2'>
         <MediaSortControls sortKey={sortKey} sortDir={sortDir} onSort={handlers.handleSort} />
         <button

@@ -11,6 +11,7 @@ interface QuickUploadModalProps {
   isOpen: boolean;
   mediaItem: MediaItem | null;
   channels: YoutubeChannel[];
+  initialScheduledFor?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -30,6 +31,7 @@ export default function QuickUploadModal({
   isOpen,
   mediaItem,
   channels,
+  initialScheduledFor,
   onClose,
   onSuccess,
 }: QuickUploadModalProps) {
@@ -42,28 +44,51 @@ export default function QuickUploadModal({
     () => media.filter((m) => (m.mimeType ?? '').startsWith('image/')),
     [media]
   );
+  const videoItems = useMemo(
+    () => media.filter((m) => (m.mimeType ?? '').startsWith('video/')),
+    [media]
+  );
+  const defaultVideo = useMemo(() => {
+    if (mediaItem) return mediaItem;
+    if (videoItems.length === 0) return null;
+    return videoItems.reduce((latest, current) => {
+      const latestTime = latest.createdAt ? Date.parse(latest.createdAt) : 0;
+      const currentTime = current.createdAt ? Date.parse(current.createdAt) : 0;
+      return currentTime > latestTime ? current : latest;
+    }, videoItems[0]);
+  }, [mediaItem, videoItems]);
+
+  const selectedMediaItem = mediaItem ?? defaultVideo;
+  const scheduledForValue = initialScheduledFor ?? '';
 
   // Reset form when modal opens with new media item
   useEffect(() => {
-    if (isOpen && mediaItem) {
+    if (!isOpen) return;
+    if (!selectedMediaItem) {
+      setFormData(initialFormData);
+      setScheduleEnabled(Boolean(scheduledForValue));
+      setError(null);
+      return;
+    }
+    if (isOpen && selectedMediaItem) {
       setFormData({
-        mediaItemId: mediaItem.id,
+        mediaItemId: selectedMediaItem.id,
         youtubeChannelId: channels[0]?.id || 0,
         thumbnailMediaItemId: undefined,
-        title: mediaItem.name.replace(/\.[^/.]+$/, ''),
+        title: selectedMediaItem.name.replace(/\.[^/.]+$/, ''),
         description: '',
         tags: '',
         privacyStatus: 'PUBLIC',
-        scheduledFor: '',
+        scheduledFor: scheduledForValue,
       });
-      setScheduleEnabled(false);
+      setScheduleEnabled(Boolean(scheduledForValue));
       setError(null);
     }
-  }, [isOpen, mediaItem, channels, imageItems]);
+  }, [isOpen, selectedMediaItem, channels, scheduledForValue]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!mediaItem) return;
+    if (!selectedMediaItem) return;
 
     setError(null);
     setLoading(true);
@@ -71,6 +96,7 @@ export default function QuickUploadModal({
     try {
       const payload = buildUploadJobPayload({
         ...formData,
+        mediaItemId: selectedMediaItem.id,
         scheduledFor: scheduleEnabled ? formData.scheduledFor : '',
       });
 
@@ -94,8 +120,8 @@ export default function QuickUploadModal({
     }
   };
   
-  const videoSrc = mediaItem?.driveFileId
-    ? `${API_URL}/media-preview/${mediaItem.driveFileId}/video`
+  const videoSrc = selectedMediaItem?.driveFileId
+    ? `${API_URL}/media-preview/${selectedMediaItem.driveFileId}/video`
     : null;
 
   const selectedImage = formData.thumbnailMediaItemId
@@ -108,10 +134,15 @@ export default function QuickUploadModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Post to YouTube">
-      {mediaItem && (
+      {!selectedMediaItem && (
+        <div className="alert alert-warning">
+          No video selected. Upload a video first or choose one from the media table.
+        </div>
+      )}
+      {selectedMediaItem && (
         <form onSubmit={handleSubmit}>
           <div className="form-field">
-            <div className="form-readonly truncate">{mediaItem.name}</div>
+            <div className="form-readonly truncate">{selectedMediaItem.name}</div>
           </div>
 
           <div className="form-field mb-2">

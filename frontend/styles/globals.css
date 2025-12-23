@@ -41,6 +41,12 @@ a:hover {
   text-decoration: underline;
 }
 
+.media-table th,
+.media-table td {
+  white-space: nowrap;
+  padding: 5px 10px;
+}
+
 .section-header .toolbar {
   white-space: nowrap;
   display: flex;

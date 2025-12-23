@@ -8,9 +8,10 @@ interface Props {
   daysInMonth: number
   itemsByDay: Record<string, ScheduleItem[]>
   onOpenDay(date: string): void
+  onQuickPost(date: string): void
 }
 
-export function MonthView({ monthKey, startDay, daysInMonth, itemsByDay, onOpenDay }: Props) {
+export function MonthView({ monthKey, startDay, daysInMonth, itemsByDay, onOpenDay, onQuickPost }: Props) {
   return (
     <>
       <div className="grid grid-cols-7 text-xs text-neutral-500 mb-2 w-full">
@@ -32,6 +33,7 @@ export function MonthView({ monthKey, startDay, daysInMonth, itemsByDay, onOpenD
               day={day}
               items={itemsByDay[date] ?? []}
               onOpen={onOpenDay}
+              onQuickPost={onQuickPost}
             />
           )
         })}

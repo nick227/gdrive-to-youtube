@@ -1,7 +1,7 @@
 import app from './app';
 import prisma from './prismaClient';
 
-const port = process.env.SERVER_PORT || process.env.PORT || 4000;
+const port = Number(process.env.PORT || process.env.SERVER_PORT || 4000);
 
 const server = app.listen(port, () => {
   console.log(`Backend listening on port ${port}`);

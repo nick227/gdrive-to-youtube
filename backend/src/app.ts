@@ -20,10 +20,10 @@ import mediaPreviewRoutes from "./routes/media-preview";
 import driveRoutes from "./routes/drive";
 import jobQueueRoutes from "./routes/jobQueue";
 import prisma from "./prismaClient";
-import { validateEnv } from "./config/validateEnv";
+// import { validateEnv } from "./config/validateEnv";
 
 dotenv.config();
-validateEnv();
+// validateEnv();
 
 const app = express();
 

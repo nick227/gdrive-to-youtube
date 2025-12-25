@@ -98,7 +98,8 @@ function PageContent() {
     async (tasks: string[]) => {
       try {
         await triggerJobQueue(tasks);
-        setModal({ type: 'loading', item: null })
+        // setModal({ type: 'loading', item: null });
+        handleLoadingModal();
         await new Promise(r => setTimeout(r, 3000));
         await reload(); // rehydrate media, history, and schedule in place
       } catch (err) {
@@ -109,6 +110,7 @@ function PageContent() {
     [reload]
   );
 
+  const handleLoadingModal = () => requireAuth(() => handleJobQueue(['loading']));
   const handleSyncMedia = () => requireAuth(() => handleJobQueue(['sync']));
   const handleProcessJobs = () =>
     requireAuth(() => handleJobQueue(['uploads', 'renders']));
